@@ -1,0 +1,19 @@
+// RUN: %gentest -t %t.full llvm-amdgpu --scope-encoding=full %s
+// RUN: %gentest -t %t.optimized llvm-amdgpu --scope-encoding=optimized %s
+
+#workgroup 0
+#wave 0
+#thread 0
+  $S: store data
+  $A: store.release.ss=workgroup p
+
+#wave 1
+#thread 1
+  $B: load.acquire.ss=workgroup p
+  $L: load data
+
+#push amdgpu_memory_model
+
+// These can synchronize since their scopes are inclusive.
+
+#check sat ($A -> $B) in llvm_sw

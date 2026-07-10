@@ -1,0 +1,19 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+$A: store.monotonic p
+
+#thread 1
+$B: rmw.monotonic p
+
+#thread 2
+$C: load p
+
+#push llvm_memory_model
+
+// $B is not racing
+#check sat $B not in DataRaceRead
+#check unsat $B in DataRaceRead
+
+// $C is racing
+#check unsat $C not in DataRaceRead

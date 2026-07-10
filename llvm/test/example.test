@@ -1,0 +1,27 @@
+// This is the example test in docs/tests.md, they need to be kept in sync.
+// Instructions for the llvm-lit test harness:
+// RUN: %gentest -t %t llvm %s
+
+// Test that the release-acquire handshake works:
+#thread 0                          // The following operations belong to thread 0.
+  $A: store p                      // a non-atomic store of some value to address 'p' (named $A for later reference)
+  fence.release                    // a fence with release semantics
+  $X: store.monotonic flag         // an atomic store with monotonic memory ordering to address 'flag' (named $X for later reference)
+
+#thread 1                          // The following operations belong to thread 1.
+  $Y: load.monotonic flag          // an atomic load with monotonic memory ordering from address 'flag' (named $Y for later reference)
+  fence.acquire                    // a fence with acquire semantics
+  $B: load p                       // a non-atomic load from address 'p' (named $B for later reference)
+
+#push llvm_memory_model            // Establish that executions should satisfy the LLVM memory model predicate (defined in llvm/llvm_predicates.als).
+
+#push ($X -> $Y) in rf             // Establish the assumption that the load $Y reads from the store $X for the following checks.
+
+#check sat ($A -> $B) in rf        // Check that there is an execution where $B reads from $A.
+#check unsat ($A -> $B) not in rf  // Check that there is no execution where $B does not read from $A.
+                                   // (because the fences synchronize and establish a happens-before relation)
+
+#pop                               // Remove the last pushed assumption: that $Y reads from $X.
+
+#check sat ($A -> $B) not in rf    // Check that, now, there is an execution where $B does not read from $A.
+                                   // (because the fences only synchronize if $Y reads from $X).

@@ -1,0 +1,21 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $S0: store p0
+
+#thread 1
+  $L1: load.seq_cst p0
+  $S1: store.seq_cst p0
+
+#thread 2
+  $L2: load.seq_cst p0
+  $S2: store.seq_cst p0
+
+#push llvm_memory_model
+
+#check sat
+#assert some DataRaceRead
+
+// The seqcst_order does not prevent data races.
+#assert ($L1 + $L2) in DataRaceRead
+#check sat ($L1 -> $S1) + ($S1 -> $L2) + ($L2 -> $S2) in seqcst_order and $L1 in DataRaceRead

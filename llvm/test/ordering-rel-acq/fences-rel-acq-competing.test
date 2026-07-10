@@ -1,0 +1,24 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $A: store p1
+  fence.release
+  $X1: store.unordered p2
+  $X2: store.unordered p3
+
+#thread 1
+  $Y1: load.unordered p2
+  $Y2: load.unordered p3
+  fence.acquire
+  $B: load p1
+
+#push llvm_memory_model
+
+// Synchronization should still work if there is more than one candidate for the
+// load/store operations that match with fences.
+
+#check sat ($X1 -> $Y1) + ($X2 -> $Y2) in rf and ($A -> $B) in rf
+
+#check unsat ($X2 -> $Y2) in rf and ($A -> $B) not in rf
+
+#check unsat ($X1 -> $Y1) in rf and ($A -> $B) not in rf

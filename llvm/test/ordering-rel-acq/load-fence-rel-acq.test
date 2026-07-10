@@ -1,0 +1,19 @@
+// RUN: %gentest -t %t llvm %s
+
+// If $Y reads from $X, $B must read from $A because of release/acquire
+// synchronization.
+
+#thread 0
+  $A: store p1
+  fence.release
+  $X: store.unordered p2
+
+#thread 1
+  $Y: load.acquire p2
+  $B: load p1
+
+#push llvm_memory_model
+
+#check sat ($X -> $Y) in rf and ($A -> $B) in rf
+
+#check unsat ($X -> $Y) in rf and ($A -> $B) not in rf

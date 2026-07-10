@@ -1,0 +1,13 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $A1: store p
+  $A2: store p
+  $B: load p
+
+#push llvm_memory_model
+
+// $B must read from $A2.
+#check sat ($A2 -> $B) in rf
+#check unsat ($A2 -> $B) not in rf
+#check unsat ($A1 -> $B) in rf

@@ -1,0 +1,27 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+$A: rmw.monotonic p
+
+#thread 1
+$B: rmw.monotonic p
+
+#thread 2
+$C: rmw.monotonic p
+
+#push llvm_memory_model
+
+// The RMWs can execute in any order.
+#check sat ($A -> $B) + ($B -> $C) in rf
+#check sat ($A -> $C) + ($C -> $B) in rf
+#check sat ($B -> $A) + ($A -> $C) in rf
+#check sat ($B -> $C) + ($C -> $A) in rf
+#check sat ($C -> $A) + ($A -> $B) in rf
+#check sat ($C -> $B) + ($B -> $A) in rf
+
+// Only one can read the initial value.
+#check unsat #(($A + $B + $C) & InitRead) > 1
+
+// They can't read in a cycle.
+#check unsat ($A -> $B) + ($B -> $A) in rf
+#check unsat ($A -> $B) + ($B -> $C) + ($C -> $A) in rf

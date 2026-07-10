@@ -1,0 +1,15 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+$A: store.unordered p
+
+#thread 1
+$B: rmw.monotonic p
+
+#thread 2
+$C: load.unordered p
+
+#push llvm_memory_model
+
+// RMWs can read from unordered atomics.
+#check sat ($A -> $B) + ($B -> $C) in rf

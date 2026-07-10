@@ -1,0 +1,21 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $S0: store.seq_cst p0
+  $L0: load.seq_cst p1
+
+#thread 1
+  $S1: store.seq_cst p1
+  $L1: load.seq_cst p0
+
+// A characteristic litmus test for sequential consistency:
+// It shouldn't be possible that $L0 and $L1 both read the initial value.
+
+#push llvm_memory_model
+
+#check sat $L0 in InitRead
+#check sat $L1 in InitRead
+#check sat no ($L0 + $L1) & InitRead
+
+#check unsat $L0 + $L1 in InitRead
+

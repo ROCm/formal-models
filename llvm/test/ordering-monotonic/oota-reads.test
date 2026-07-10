@@ -1,0 +1,21 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $LX1: load.monotonic x
+  // We might check that the loaded value is 1 (or 42) here and store it in the next operation.
+  $SYA: store.monotonic y
+
+#thread 1
+  $LY1: load.monotonic y
+  // We might check that the loaded value is 1 (or 42) here and store it in the next operation.
+  $SXB: store.monotonic x
+
+
+#push llvm_memory_model
+
+#check sat
+
+// Out-of-thin-air reads are not ruled out by the language semantics.
+
+#check sat ($SXB -> $LX1) + ($SYA -> $LY1) in rf
+

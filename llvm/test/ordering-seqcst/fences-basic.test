@@ -1,0 +1,20 @@
+// RUN: %gentest -t %t llvm %s
+
+// Adding seq_cst everywhere in the usual fences example does not break the
+// behavior.
+
+#thread 0
+  $A: store.seq_cst p1
+  fence.seq_cst
+  $X: store.seq_cst p2
+
+#thread 1
+  $Y: load.seq_cst p2
+  fence.seq_cst
+  $B: load.seq_cst p1
+
+#push llvm_memory_model
+
+#check sat ($X -> $Y) in rf and ($A -> $B) in rf
+
+#check unsat ($X -> $Y) in rf and ($A -> $B) not in rf

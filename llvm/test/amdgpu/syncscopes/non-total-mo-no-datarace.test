@@ -1,0 +1,29 @@
+// RUN: %gentest -t %t.full llvm-amdgpu --scope-encoding=full %s
+// RUN: %gentest -t %t.optimized llvm-amdgpu --scope-encoding=optimized %s
+
+#workgroup 0
+#wave 0
+#thread 0
+  $S0: store.monotonic.ss=wavefront p
+  $L0: load.monotonic.ss=system p
+  $SR: store.release.ss=system flag
+
+#wave 1
+#thread 1
+  $LA: load.acquire.ss=system flag
+  $S1: store.monotonic.ss=wavefront p
+  $L1: load.monotonic.ss=system p
+
+#push amdgpu_memory_model
+
+#push $SR -> $LA in llvm_sw
+
+#check sat
+
+#assert ($S0 -> $S1) not in inclusive_scope
+
+#assert no DataRaceRead
+
+#assert $S1 -> $L1 in rf
+
+#check sat $S0 -> $S1 not in mo

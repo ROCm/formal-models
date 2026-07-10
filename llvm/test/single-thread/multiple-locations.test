@@ -1,0 +1,14 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $S1: store p1
+  $S2: store p2
+  $L1: load p1
+  $L2: load p2
+
+#push llvm_memory_model
+
+// Memory operations on different locations don't interfere.
+#check sat ($S1 -> $L1) + ($S2 -> $L2) in rf
+#check unsat ($S1 -> $L1) not in rf
+#check unsat ($S2 -> $L2) not in rf

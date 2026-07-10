@@ -1,0 +1,19 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $S0: store.unordered p0
+  $S1: store.unordered p0
+
+#thread 1
+  $L0: load.unordered p0
+  $L1: load.unordered p0
+
+#push llvm_memory_model
+
+#check sat $L0 in InitRead
+#check sat $L1 in InitRead
+#check sat ($S0 -> $L0) + ($S1 -> $L1) in rf
+#check sat ($S0 -> $L1) + ($S1 -> $L0) in rf
+#check sat ($S1 -> $L0) in rf and $L1 in InitRead
+
+

@@ -1,0 +1,11 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $A1: rmw.monotonic p
+  $A2: rmw.monotonic p
+  $A3: rmw.monotonic p
+
+#push llvm_memory_model
+
+#check sat ($A1 -> $A2) + ($A2 -> $A3) in rf
+#check unsat ($A1 -> $A2) + ($A2 -> $A3) not in rf

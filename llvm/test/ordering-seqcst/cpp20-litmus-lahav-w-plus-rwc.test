@@ -1,0 +1,25 @@
+// RUN: %gentest -t %t llvm %s
+
+// This test encodes the example W+RWC from the paper "Repairing
+// Sequential Consistency in C/C++11" by Lahav et al..
+
+#thread 0
+  $SX1: store.monotonic x
+  $SZ1: store.release z
+
+#thread 1
+  $LZ1: load.acquire z
+  fence.seq_cst
+  $LY0: load.monotonic y
+
+#thread 2
+  $SY1: store.monotonic y
+  fence.seq_cst
+  $LX0: load.monotonic x
+
+
+#push llvm_memory_model
+
+#check sat
+
+#check unsat $LY0 + $LX0 in InitRead and ($SZ1 -> $LZ1) in rf

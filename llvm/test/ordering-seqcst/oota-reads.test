@@ -1,0 +1,21 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $LX1: load.seq_cst x
+  // We might check that the loaded value is 1 (or 42) here and store it in the next operation.
+  $SYA: store.seq_cst y
+
+#thread 1
+  $LY1: load.seq_cst y
+  // We might check that the loaded value is 1 (or 42) here and store it in the next operation.
+  $SXB: store.seq_cst x
+
+
+#push llvm_memory_model
+
+#check sat
+
+// Out-of-thin-air reads with only seq_cst operations are not allowed.
+
+#check unsat ($SXB -> $LX1) + ($SYA -> $LY1) in rf
+

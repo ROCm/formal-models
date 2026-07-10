@@ -1,0 +1,31 @@
+// RUN: %gentest -t %t.full llvm-amdgpu --scope-encoding=full %s
+// RUN: %gentest -t %t.optimized llvm-amdgpu --scope-encoding=optimized %s
+
+// This encodes the HSA litmus test "9. Unobservable store speculation" from
+// HSA's "Representative Litmus Tests" (Version 1.2):
+// https://hsafoundation.com/wp-content/uploads/2021/02/cat_TestCases-1.2.pdf
+// Note that HSA's scacq and screl orderings correspond to C++'s and LLVM's
+// seq_cst ordering, not the acquire and release orderings.
+
+#workgroup 0
+#wave 0
+#thread 0
+  $LX0: load.seq_cst x
+  $SY1: store.seq_cst y
+
+#wave 1
+#thread 1
+  $LY0: load.seq_cst y
+  $SX1: store.seq_cst x
+
+
+#push amdgpu_memory_model
+
+// In the original test in the HSA document, all memory accesses are non-atomic.
+// At least in LLVM IR, that would mean they are in a data race and all reads
+// read undef. The property captured by the test only holds for seq_cst accesses
+// in the LLVM memory model.
+
+#check sat
+
+#check unsat ($SX1 -> $LX0) + ($SY1 -> $LY0) in rf

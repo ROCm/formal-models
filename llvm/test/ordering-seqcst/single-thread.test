@@ -1,0 +1,22 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $S1: store.seq_cst p1
+  $S2: store.seq_cst p2
+  $S3: store.seq_cst p1
+  $L1: load.seq_cst p1
+  $L2: load.seq_cst p2
+  $L3: load.seq_cst p1
+  $S4: store.seq_cst p1
+  $L4: load.seq_cst p1
+  $F: fence.seq_cst
+  $L5: load.seq_cst p2
+
+
+#push llvm_memory_model
+
+#check sat ($S2 -> $L2) + ($S3 -> $L1) + ($S3 -> $L3) + ($S4 -> $L4) + ($S2 -> $L5) in rf
+
+#assert ($S2 -> $L2) + ($S3 -> $L1) + ($S3 -> $L3) + ($S4 -> $L4) + ($S2 -> $L5) in rf
+
+#assert ($S1 -> $S2) + ($S2 -> $S3) + ($S3 -> $L1) + ($L1 -> $L2) + ($L2 -> $L3) + ($L3 -> $S4) + ($S4 -> $L4) + ($L4 -> $F) + ($F -> $L5) in seqcst_order

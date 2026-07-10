@@ -1,0 +1,22 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $S0: store.monotonic p0
+  $L0: load.monotonic p1
+
+#thread 1
+  $S1: store.monotonic p1
+  $L1: load.monotonic p0
+
+// This is a characteristic litmus test for sequential consistency:
+// seq_cst is necessary to rule out that $L0 and $L1 both read the initial value.
+// Hence, this outcome is possible with the monotonic operations here.
+
+#push llvm_memory_model
+
+#check sat $L0 in InitRead
+#check sat $L1 in InitRead
+#check sat no ($L0 + $L1) & InitRead
+
+#check sat $L0 + $L1 in InitRead
+

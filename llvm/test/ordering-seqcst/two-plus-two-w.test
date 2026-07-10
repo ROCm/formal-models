@@ -1,0 +1,19 @@
+// RUN: %gentest -t %t llvm %s
+
+// Adaptation of the "2+2W" litmus test.
+
+#thread 0
+  $WA1: store.seq_cst x
+  $WA2: store.seq_cst y
+  $RA: store.monotonic y
+
+#thread 1
+  $WB1: store.seq_cst y
+  $WB2: store.seq_cst x
+  $RB: store.monotonic x
+
+#push llvm_memory_model
+
+#check sat
+
+#check unsat ($WB1 -> $RA) + ($WA1 -> $RB) in rf

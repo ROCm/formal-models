@@ -1,0 +1,35 @@
+// RUN: %gentest -t %t.full llvm-amdgpu --scope-encoding=full %s
+// RUN: %gentest -t %t.optimized llvm-amdgpu --scope-encoding=optimized %s
+
+
+// This encodes the HSA litmus test "1. Sequentially-consistent synchronizing
+// operations" from HSA's "Representative Litmus Tests" (Version 1.2):
+// https://hsafoundation.com/wp-content/uploads/2021/02/cat_TestCases-1.2.pdf
+// Note that HSA's scacq and screl orderings correspond to C++'s and LLVM's
+// seq_cst ordering, not the acquire and release orderings.
+
+#workgroup 0
+#wave 0
+#thread 0
+  $SX1: store.seq_cst.ss=wg x
+
+#wave 1
+#thread 1
+  $SY1: store.seq_cst.ss=wg y
+
+#wave 2
+#thread 2
+  $LX2: load.seq_cst.ss=wg x
+  $LY2: load.seq_cst.ss=wg y
+
+#wave 3
+#thread 3
+  $LY3: load.seq_cst.ss=wg y
+  $LX3: load.seq_cst.ss=wg x
+
+#push amdgpu_memory_model
+
+#check sat
+
+#check unsat $LY2 + $LX3 in InitRead and ($SX1 -> $LX2) + ($SY1 -> $LY3) in rf
+

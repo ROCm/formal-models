@@ -1,0 +1,27 @@
+// RUN: %gentest -t %t.full llvm-amdgpu --scope-encoding=full %s
+// RUN: %gentest -t %t.optimized llvm-amdgpu --scope-encoding=optimized %s
+
+// This encodes the HSA litmus test "5. Synchronization through scope inclusion"
+// from HSA's "Representative Litmus Tests" (Version 1.2):
+// https://hsafoundation.com/wp-content/uploads/2021/02/cat_TestCases-1.2.pdf
+// Note that HSA's scacq and screl orderings correspond to C++'s and LLVM's
+// seq_cst ordering, not the acquire and release orderings.
+
+#workgroup 0
+#wave 0
+#thread 0
+  $SX53: store x
+  $SY1: store.seq_cst.ss=wg y
+
+#wave 1
+#thread 1
+  $LY: load.seq_cst.ss=agent y
+  $LX: load x
+
+
+#push amdgpu_memory_model
+
+#push ($SY1 -> $LY) in rf
+
+#check sat ($SX53 -> $LX) in rf
+#check unsat $LX in InitRead

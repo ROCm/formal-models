@@ -1,0 +1,40 @@
+// RUN: %gentest -t %t.full llvm-amdgpu --scope-encoding=full %s
+// RUN: %gentest -t %t.optimized llvm-amdgpu --scope-encoding=optimized %s
+
+#workgroup 0
+#wave 0
+#thread 0
+  $S0: store.seq_cst.ss=wg p
+
+#wave 1
+#thread 1
+  $L11: load.seq_cst.ss=system p
+  $L12: load.seq_cst.ss=system p
+
+#wave 2
+#thread 2
+  $L21: load.seq_cst.ss=system p
+  $L22: load.seq_cst.ss=system p
+
+#workgroup 1
+#wave 3
+#thread 3
+  $S1: store.seq_cst.ss=system p
+
+#push amdgpu_memory_model
+
+#check sat
+
+// The Writes have inclusive scopes with every Read.
+#assert (($S0 + $S1) -> Read) in inclusive_scope
+
+// The Writes don't have inclusive scopes with each other.
+#assert ($S0 -> $S1) not in inclusive_scope
+
+// The Reads are considered parts of data races in this case.
+#assert Read = DataRaceRead
+
+// The following (where an execution observes the effects of two seq_cst Writes
+// with non-inclusive scope in two different orders) is not possible due to the
+// data race:
+#check unsat ($S0 -> $L11) + ($S1 -> $L12) + ($S1 -> $L21) + ($S0 -> $L22) in rf

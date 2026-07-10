@@ -1,0 +1,18 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+$S1: store.monotonic p
+
+#thread 1
+$S2: store.monotonic p
+
+#thread 2
+$L: load.monotonic p
+
+#push llvm_memory_model
+
+// The operations can be executed in any order.
+
+#check sat ($S1 -> $L) in rf
+#check sat ($S2 -> $L) in rf
+#check sat $L in InitRead

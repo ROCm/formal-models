@@ -1,0 +1,19 @@
+// RUN: %gentest -t %t llvm %s
+
+// If $Y and $X don't access the same location, they can't synchronize.
+
+#thread 0
+  $A: store p1
+  fence.release
+  $X: store.unordered p2
+
+#thread 1
+  $Y: load.unordered p3
+  fence.acquire
+  $B: load p1
+
+#push llvm_memory_model
+
+#check sat
+
+#check unsat ($X -> $Y) in llvm_sw

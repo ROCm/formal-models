@@ -1,0 +1,7 @@
+module memory_consistency/llvm/all_predicates
+
+open memory_consistency/llvm/general_predicates
+open memory_consistency/llvm/llvm_predicates
+open memory_consistency/llvm/amdgpu_predicates
+open memory_consistency/llvm/scopes
+

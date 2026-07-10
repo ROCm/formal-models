@@ -1,0 +1,30 @@
+// RUN: %gentest -t %t llvm %s
+
+// This test encodes the example IRIW-acq-sc from the paper "Repairing
+// Sequential Consistency in C/C++11" by Lahav et al., which they had taken from
+// Manerkar et al.'s "Counterexamples and proof loophole for the C/C++ to POWER
+// and ARMv7 trailing-sync compiler mappings".
+// It is basically a litmus test for the C++20 memory model vs the previous C++
+// memory model: The encoded behavior was previously not allowed, but is in
+// C++20 (because it was possible with common compilation schemes on POWER and
+// ARM).
+
+#thread 0
+  $SX: store.seq_cst x
+
+#thread 1
+  $LA: load.acquire x
+  $LC: load.seq_cst y
+
+#thread 2
+  $LB: load.acquire y
+  $LD: load.seq_cst x
+
+#thread 3
+  $SY: store.seq_cst y
+
+#push llvm_memory_model
+
+#push ($SX -> $LA) + ($SY -> $LB) in rf and $LC + $LD in InitRead
+
+#check sat

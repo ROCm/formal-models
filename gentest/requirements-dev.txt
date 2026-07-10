@@ -1,0 +1,14 @@
+# Packages required for development and testing of the gentest module.
+# Those are not required for using gentest to test Alloy models.
+
+# LLVM's recommended source formatter (see https://llvm.org/docs/CodingStandards.html#python-version-and-source-code-formatting )
+# LLVM recommends version 23.* (since major versions can (and do) break
+# formatting), but version 23 is affected by a (most likely practically
+# irrelevant for us) CVE that Github's dependabot would complain about.
+black==26.*
+
+# For static type checking:
+mypy
+
+# For unit tests:
+pytest

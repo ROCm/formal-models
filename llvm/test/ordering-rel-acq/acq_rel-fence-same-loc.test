@@ -1,0 +1,22 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $A: store data
+  $L1: store.release lock
+
+#thread 1
+  $L2: load.monotonic lock
+  fence.acq_rel
+  $L3: store.monotonic lock
+
+#thread 2
+  $L4: load.acquire lock
+  $B: load data
+
+#push llvm_memory_model
+
+#push ($L1 -> $L2) + ($L3 -> $L4) in rf
+
+#check sat ($A -> $B) in rf
+#check unsat ($A -> $B) not in rf
+

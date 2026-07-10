@@ -1,0 +1,9 @@
+build/
+*.jar
+*.csv
+*_solutions/
+
+__pycache__
+.pytest_cache
+*.py[codz]
+*$py.class

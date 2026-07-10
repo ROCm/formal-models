@@ -1,0 +1,15 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $E1: rmw.seq_cst p1
+  $E2: rmw.seq_cst p2
+  $E3: rmw.seq_cst p1
+
+
+#push llvm_memory_model
+
+#check sat
+
+#assert $E1 in InitRead
+#assert $E2 in InitRead
+#assert ($E1 -> $E3) in rf

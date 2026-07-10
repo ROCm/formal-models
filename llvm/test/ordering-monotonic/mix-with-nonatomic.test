@@ -1,0 +1,25 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+$SU1: store p
+$SM2: store.monotonic p
+$SU3: store p
+$SM4: store.monotonic p
+
+#thread 1
+$LU1: load p
+$LM2: load.monotonic p
+$LU3: load p
+$LM4: load.monotonic p
+
+#push llvm_memory_model
+
+// All loads read undef, because they are racy.
+
+#check sat
+
+#check unsat $LU1 not in DataRaceRead
+#check unsat $LM2 not in DataRaceRead
+#check unsat $LU3 not in DataRaceRead
+#check unsat $LM4 not in DataRaceRead
+

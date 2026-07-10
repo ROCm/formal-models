@@ -1,0 +1,23 @@
+// RUN: %gentest -t %t.full llvm-amdgpu --scope-encoding=full %s
+// RUN: %gentest -t %t.optimized llvm-amdgpu --scope-encoding=optimized %s
+
+#workgroup 0
+#wave 0
+#thread 0
+  $S: store data
+  $A: fence.release.ss=wavefront
+  $X: store.monotonic.ss=workgroup p
+
+#wave 1
+#thread 1
+  $Y: load.monotonic.ss=workgroup p
+  $B: fence.acquire.ss=wavefront
+  $L: load data
+
+#push amdgpu_memory_model
+
+// These cannot synchronize since the fence scopes are not inclusive.
+// The scopes of X and Y do not matter for synchronization.
+
+#check sat
+#check unsat ($A -> $B) in llvm_sw

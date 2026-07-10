@@ -1,0 +1,23 @@
+// RUN: %gentest -t %t.full llvm-amdgpu --scope-encoding=full %s
+// RUN: %gentest -t %t.optimized llvm-amdgpu --scope-encoding=optimized %s
+
+#workgroup 0
+#wave 0
+#thread 0
+  $S1: store.monotonic.ss=wavefront p
+  $S2: store.monotonic.ss=workgroup p
+
+#workgroup 1
+#wave 1
+#thread 1
+  $S3: store.monotonic.ss=workgroup p
+  $L1: load.monotonic.ss=wavefront p
+
+#push amdgpu_memory_model
+
+#check sat
+
+// This is a data race, even though there are stores with inclusive scopes: the
+// one with non-inclusive scope is enough to make it a race.
+#check unsat no DataRaceRead
+

@@ -1,0 +1,19 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+$S1: store p
+$S2: store.monotonic flag
+
+#thread 1
+$L1: load.monotonic flag
+$L2: load p
+
+#push llvm_memory_model
+
+// Monotonic operations don't synchronize-with each other, so they are not
+// sufficient to make stores visible. Therefore, $L2 could see the initial value
+// or $S1, so it reads undef.
+
+#check sat ($S2 -> $L1) in rf and $L2 in DataRaceRead
+#check unsat $L2 not in DataRaceRead
+

@@ -1,0 +1,15 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $S1: store p1
+
+#thread 1
+  $L1: load p2
+
+#push llvm_memory_model
+
+#check sat
+
+// The accesses go to different memory locations: no race.
+#check unsat some DataRaceRead
+

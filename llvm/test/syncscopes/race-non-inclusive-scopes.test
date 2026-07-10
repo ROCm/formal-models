@@ -1,0 +1,19 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $S1: store.monotonic.ss=singlethread p
+
+#thread 1
+  $L1: load.monotonic.ss=singlethread p
+
+#push llvm_memory_model
+
+#check sat
+#check sat $L1 in DataRaceRead
+
+#push scope_inclusion_is_scope_compatibility
+
+// This is a data race: accesses with incompatible scopes act like non-atomic
+// accesses to each other.
+#check sat
+#check unsat no DataRaceRead

@@ -1,0 +1,32 @@
+// RUN: %gentest -t %t.full llvm-amdgpu --scope-encoding=full %s
+// RUN: %gentest -t %t.optimized llvm-amdgpu --scope-encoding=optimized %s
+
+#workgroup 0
+#wave 0
+#thread 0
+  $S0: store.seq_cst.ss=workgroup p0
+  $SR: store.release flag
+
+#workgroup 1
+#wave 1
+#thread 1
+  $LA: load.acquire flag
+  $S1: store.seq_cst.ss=workgroup p1
+
+#wave 2
+#thread 2
+  $L0: load.seq_cst.ss=workgroup p1
+  $L1: load.seq_cst.ss=workgroup p0
+
+#push amdgpu_memory_model
+
+#push ($SR -> $LA) in rf
+
+#check sat
+
+// The ($SR -> $LA) synchronization should be enough to order $S0 before $S1 in
+// seqcst_order.
+#assert ($S0 -> $S1) in seqcst_order
+
+#check unsat ($S1 -> $L0) in rf and $L1 in InitRead + DataRaceRead
+

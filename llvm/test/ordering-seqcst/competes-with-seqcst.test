@@ -1,0 +1,18 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $S0: store.seq_cst p0
+  $L0: load.seq_cst p0
+
+#thread 1
+  $S1: store.seq_cst p0
+
+#push llvm_memory_model
+
+// The stores are not in a fixed order, but they are atomic, so no data race.
+
+#check sat ($S0 -> $L0) in rf
+#check sat ($S1 -> $L0) in rf
+
+#assert $L0 not in InitRead
+#assert no DataRaceRead

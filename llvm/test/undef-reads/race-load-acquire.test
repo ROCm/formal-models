@@ -1,0 +1,24 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $A: store p1
+  $X: store.release p2
+
+#thread 1
+  $Y: load.acquire p2
+  $B: load p1
+
+#thread 2
+  $Z: store p2
+
+#push llvm_memory_model
+
+#check sat
+
+// The load.acquire is always in a data race because of $Z, therefore it doesn't
+// read from $X and therefore cannot synchronize with it.
+
+#check unsat no DataRaceRead
+
+#check unsat ($X -> $Y) in rf
+

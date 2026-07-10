@@ -1,0 +1,41 @@
+// RUN: %gentest -t %t.full llvm-amdgpu --scope-encoding=full %s
+// RUN: %gentest -t %t.optimized llvm-amdgpu --scope-encoding=optimized %s
+
+#agent 0
+#cluster 0
+#workgroup 0
+#wave 0
+#thread 0
+  $L0: load p
+
+#thread 1
+  $L1: load p
+
+#wave 1
+#thread 2
+  $L2: load p
+
+#thread 3
+  $L3: load p
+
+#workgroup 1
+#wave 2
+#thread 4
+  $L4: load p
+
+#cluster 1
+#workgroup 2
+#wave 3
+#thread 5
+  $L5: load p
+
+#agent 1
+#cluster 2
+#workgroup 3
+#wave 4
+#thread 6
+  $L6: load p
+
+#push amdgpu_memory_model
+
+#check sat

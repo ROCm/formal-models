@@ -1,0 +1,25 @@
+// RUN: %gentest -t %t llvm %s
+
+// This test encodes the example RWC+syncs from the paper "Repairing
+// Sequential Consistency in C/C++11" by Lahav et al..
+
+#thread 0
+  $SX1: store.monotonic x
+
+#thread 1
+  $LX1: load.monotonic x
+  fence.seq_cst
+  $LY0: load.monotonic y
+
+#thread 2
+  $SY1: store.monotonic y
+  fence.seq_cst
+  $LX0: load.monotonic x
+
+
+#push llvm_memory_model
+
+#check sat
+
+// This was allowed before C++20, but isn't anymore.
+#check unsat $LY0 + $LX0 in InitRead and ($SX1 -> $LX1) in rf

@@ -1,0 +1,16 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $S1: store p
+
+#thread 1
+  $L1: load.unordered p
+
+#push llvm_memory_model
+
+#check sat
+
+// This is a data race, $L1 reads undef.
+#check unsat $L1 not in DataRaceRead
+#check unsat ($S1 -> $L1) in rf
+

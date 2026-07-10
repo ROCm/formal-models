@@ -1,0 +1,53 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+$SU1: store.unordered p
+$SM2: store.monotonic p
+$SU3: store.unordered p
+$SM4: store.monotonic p
+$SU5: store.unordered p
+$SM6: store.monotonic p
+
+#thread 1
+$LU1: load.unordered p
+$LM2: load.monotonic p
+$LU3: load.unordered p
+$LM4: load.monotonic p
+$LU5: load.unordered p
+$LM6: load.monotonic p
+
+
+#push llvm_memory_model
+
+// The threads can execute in lock-step (but they don't have to).
+#check sat ($SU1 -> $LU1) + ($SM2 -> $LM2) + ($SU3 -> $LU3) + ($SM4 -> $LM4) + ($SU5 -> $LU5) + ($SM6 -> $LM6) in rf
+
+// The interaction between monotonic and unordered seems underspecified in the
+// LangRef, so the following assertions contain guesswork to get to a consistent
+// model.
+
+// Unordered loads can read from monotonic stores.
+#check sat ($SM2 -> $LU1) in rf
+
+// Monotonic loads can read from unordered stores.
+#check sat ($SU3 -> $LM2) in rf
+
+// Monotonic loads can read from unordered stores, even if a previous monotonic
+// load read from a monotonic store.
+#check sat ($SM2 -> $LM2) in rf and ($SU3 -> $LM4) in rf
+
+// Unordered stores can sneak between monotonic stores in a sequence of
+// monotonic loads.
+#check sat ($SM2 -> $LM2) + ($SU1 -> $LM4) + ($SM4 -> $LM6) in rf
+
+// If an unordered store sneaks into a sequence of monotonic loads, the
+// remaining monotonic loads still can't break the monotonic order.
+#check unsat ($SM4 -> $LM2) + ($SU1 -> $LM4) + ($SM2 -> $LM6) in rf
+
+// Unordered loads don't care about the monotonic modification order.
+#check sat ($SM2 -> $LM2) + ($SM4 -> $LM4) + ($SM6 -> $LM6) in rf and ($SU1 -> $LU3) in rf
+#check sat ($SM2 -> $LM2) + ($SM4 -> $LM4) + ($SM6 -> $LM6) in rf and ($SM2 -> $LU3) in rf
+#check sat ($SM2 -> $LM2) + ($SM4 -> $LM4) + ($SM6 -> $LM6) in rf and ($SU3 -> $LU3) in rf
+#check sat ($SM2 -> $LM2) + ($SM4 -> $LM4) + ($SM6 -> $LM6) in rf and ($SM4 -> $LU3) in rf
+#check sat ($SM2 -> $LM2) + ($SM4 -> $LM4) + ($SM6 -> $LM6) in rf and ($SU5 -> $LU3) in rf
+#check sat ($SM2 -> $LM2) + ($SM4 -> $LM4) + ($SM6 -> $LM6) in rf and ($SM6 -> $LU3) in rf

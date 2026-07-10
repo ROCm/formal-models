@@ -1,0 +1,30 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+$S1: store.monotonic p
+$S2: store.monotonic p
+
+#thread 1
+$L1: load.monotonic p
+$L2: load.monotonic p
+
+#push llvm_memory_model
+
+// Monotonic ordering guarantees that there is some total order among the store
+// operations.
+
+// The threads can execute in lock-step (but they don't have to).
+#check sat ($S1 -> $L1) + ($S2 -> $L2) in rf
+
+// The loads could see nothing from the stores
+#check sat ($L1 + $L2) in InitRead
+
+// They could both see the first store.
+#check sat ($S1 -> $L1) + ($S1 -> $L2) in rf
+
+// They could both see the second store.
+#check sat ($S2 -> $L1) + ($S2 -> $L2) in rf
+
+// If the first load reads from the last store, all following loads must also
+// read from the last store.
+#check unsat ($S2 -> $L1) in rf and ($S2 -> $L2) not in rf

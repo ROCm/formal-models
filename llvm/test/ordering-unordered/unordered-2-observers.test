@@ -1,0 +1,19 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread producer
+  $S0: store.unordered p0
+  $S1: store.unordered p0
+
+#thread consumer0
+  $L00: load.unordered p0
+  $L01: load.unordered p0
+
+#thread consumer1
+  $L10: load.unordered p0
+  $L11: load.unordered p0
+
+#push llvm_memory_model
+
+// The two consumers can observe the stores in different orders.
+#check sat ($S0 -> $L00) + ($S1 -> $L01) + ($S1 -> $L10) + ($S0 -> $L11) in rf
+

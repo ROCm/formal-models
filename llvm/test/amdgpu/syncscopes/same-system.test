@@ -1,0 +1,55 @@
+// RUN: %gentest -t %t.full llvm-amdgpu --scope-encoding=full %s
+// RUN: %gentest -t %t.optimized llvm-amdgpu --scope-encoding=optimized %s
+
+#agent 0
+#cluster 0
+#workgroup 0
+#wave 0
+#thread 0
+  $S_st: store.release.ss=singlethread p
+  $S_wf: store.release.ss=wavefront p
+  $S_wg: store.release.ss=workgroup p
+  $S_cl: store.release.ss=cluster p
+  $S_ag: store.release.ss=agent p
+  $S_sy: store.release.ss=system p
+
+#agent 1
+#cluster 1
+#workgroup 1
+#wave 1
+#thread 1
+  $L_st: load.acquire.ss=singlethread p
+  $L_wf: load.acquire.ss=wavefront p
+  $L_wg: load.acquire.ss=workgroup p
+  $L_cl: load.acquire.ss=cluster p
+  $L_ag: load.acquire.ss=agent p
+  $L_sy: load.acquire.ss=system p
+
+#push amdgpu_memory_model
+
+#check unsat ($S_st -> $L_st) in llvm_sw
+#check unsat ($S_st -> $L_wf) in llvm_sw
+#check unsat ($S_wf -> $L_st) in llvm_sw
+// ... same for every combination involving a *_st event
+
+#check unsat ($S_wf -> $L_wf) in llvm_sw
+#check unsat ($S_wf -> $L_wg) in llvm_sw
+#check unsat ($S_wg -> $L_wf) in llvm_sw
+// ... same for every combination involving a *_wf event
+
+#check unsat ($S_wg -> $L_wg) in llvm_sw
+#check unsat ($S_wg -> $L_cl) in llvm_sw
+#check unsat ($S_cl -> $L_wg) in llvm_sw
+// ... same for every combination involving a *_wg event
+
+#check unsat ($S_cl -> $L_cl) in llvm_sw
+#check unsat ($S_cl -> $L_ag) in llvm_sw
+#check unsat ($S_ag -> $L_cl) in llvm_sw
+// ... same for every combination involving a *_cl event
+
+#check unsat ($S_ag -> $L_ag) in llvm_sw
+#check unsat ($S_ag -> $L_sy) in llvm_sw
+#check unsat ($S_sy -> $L_ag) in llvm_sw
+// ... same for every combination involving a *_ag event
+
+#check sat ($S_sy -> $L_sy) in llvm_sw

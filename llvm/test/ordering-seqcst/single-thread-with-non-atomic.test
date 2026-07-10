@@ -1,0 +1,23 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $L0: load.seq_cst p1
+  $S1: store p1
+  $L1: load.seq_cst p1
+  $S2: store.seq_cst p1
+  $L2: load.seq_cst p1
+  $L3: load p1
+
+
+#push llvm_memory_model
+
+#check sat
+
+#assert $L0 in InitRead
+
+#assert ($S1 -> $L1) in rf
+
+#assert ($S2 -> $L2) in rf
+
+#assert ($S2 -> $L3) in rf
+

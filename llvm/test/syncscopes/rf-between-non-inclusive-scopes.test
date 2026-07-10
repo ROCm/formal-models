@@ -1,0 +1,14 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $S1: store.monotonic.ss=singlethread p
+  $R: store.release flag
+
+#thread 1
+  $A: load.acquire flag
+  $L1: load.monotonic.ss=singlethread p
+
+#push llvm_memory_model
+#push scope_inclusion_is_scope_compatibility
+
+#check sat some disj a, b : Atomic - Init | a.syncscope_instance not in b.execscope_instance.*parent and (a -> b) in rf

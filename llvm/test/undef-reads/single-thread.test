@@ -1,0 +1,21 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $S1: store p
+  $S2: store.unordered p
+  $S3: store.monotonic p
+  $S4: store.release p
+  $S5: store p
+  $L1: load p
+  $L2: load.unordered p
+  $L3: load.monotonic p
+  $L4: load.acquire p
+  $L5: load p
+
+#push llvm_memory_model
+
+#check sat
+
+// You need more than one thread for a data race.
+#check unsat some DataRaceRead
+

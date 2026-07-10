@@ -1,0 +1,28 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+$A1: rmw.monotonic p
+$A2: rmw.monotonic p
+
+#thread 1
+$B1: rmw.monotonic p
+$B2: rmw.monotonic p
+
+#thread 2
+$C1: rmw.monotonic p
+$C2: rmw.monotonic p
+
+#push llvm_memory_model
+
+// The threads could execute one after the other.
+#check sat ($A1 -> $A2) + ($A2 -> $B1) + ($B1 -> $B2) + ($B2 -> $C1) + ($C1 -> $C2) in rf
+
+// They could execute in a round-robin fashion.
+#check sat ($A1 -> $B1) + ($B1 -> $C1) + ($C1 -> $A2) + ($A2 -> $B2) + ($B2 -> $C2) in rf
+
+// They can't break program order.
+#check unsat ($A2 -> $A1) in ^rf
+
+// Cyclic reads are not possible.
+#check unsat some iden & ^rf
+

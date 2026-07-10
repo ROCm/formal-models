@@ -1,0 +1,29 @@
+// RUN: %gentest -t %t.full llvm-amdgpu --scope-encoding=full %s
+// RUN: %gentest -t %t.optimized llvm-amdgpu --scope-encoding=optimized %s
+
+#workgroup 0
+#wave 0
+#thread 0
+  $S0: store.monotonic.ss=wg p
+
+#wave 1
+#thread 1
+  $S1: store.monotonic.ss=system p
+
+#workgroup 1
+#wave 2
+#thread 2
+  $S2: store.monotonic.ss=system p
+
+#push amdgpu_memory_model
+
+// If there was a read, those accesses would be racing, but according to the
+// LLVM LangRef, not even that is the case.
+// $S0 and $S2 do not have inclusive scope, but $S0 and $S1 as well as $S1 and
+// $S2 do. For the modification order to be transitive, it therefore needs to
+// relate events with non-inclusive scope.
+
+#check sat
+
+#assert ($S0 -> $S2) not in inclusive_scope
+#check sat ($S0 -> $S1) + ($S1 -> $S2) in mo

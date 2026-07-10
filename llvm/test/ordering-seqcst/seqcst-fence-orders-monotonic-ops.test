@@ -1,0 +1,32 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $S0: store.monotonic a
+  $F0: fence.seq_cst
+  $L0: load.monotonic b
+
+#thread 1
+  $S1: store.monotonic b
+  $F1: fence.seq_cst
+  $L1: load.monotonic a
+
+
+#push llvm_memory_model
+
+#check sat $L0 in InitRead
+#check sat $L1 in InitRead
+#check sat no ($L0 + $L1) & InitRead
+
+#check unsat $L0 + $L1 in InitRead
+
+// Why this holds:
+// Assume `$L0 + $L1 in InitRead`.
+// Then, the `coherence_order` contains:
+// - `$L1 -> $S0`, because `Init_a --rf-> $L1` and `Init_a --mo-> $S0` and https://eel.is/c++draft/atomics.order#3.3
+// - `$L0 -> $S1`, because `Init_b --rf-> $L0` and `Init_b --mo-> $S1` and https://eel.is/c++draft/atomics.order#3.3
+// 
+// This implies that the `seqcst_order` must contain:
+// - `$F1 -> $F0`, because `$F1 --hb-> $L1 --co-> $S0 --hb-> $F0` and https://eel.is/c++draft/atomics.order#4.4
+// - `$F0 -> $F1`, because `$F0 --hb-> $L0 --co-> $S1 --hb-> $F1` and https://eel.is/c++draft/atomics.order#4.4
+// 
+// That's a cycle in seqcst_order, which is illegal, so there is no such execution.

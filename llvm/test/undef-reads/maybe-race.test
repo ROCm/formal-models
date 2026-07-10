@@ -1,0 +1,22 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $A: store p1
+  fence.release
+  $X: store.unordered p2
+
+#thread 1
+  $Y: load.unordered p2
+  fence.acquire
+  $B: load p1
+
+#push llvm_memory_model
+
+// This is a data race iff $Y does not read from $X.
+
+#check sat some DataRaceRead
+#check sat no DataRaceRead
+
+#check unsat ($X -> $Y) in rf and some DataRaceRead
+#check unsat ($X -> $Y) not in rf and no DataRaceRead
+

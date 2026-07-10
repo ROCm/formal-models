@@ -1,0 +1,114 @@
+<?xml version="1.0"?>
+<alloy>
+
+<view>
+
+<defaultnode/>
+
+<defaultedge/>
+
+<node>
+   <type name="Int"/>
+   <type name="String"/>
+   <type name="univ"/>
+   <type name="seq/Int"/>
+   <type name="all_predicates/general_predicates/memory/Access"/>
+   <type name="all_predicates/general_predicates/memory/Init"/>
+   <set name="$InitRead" type="all_predicates/general_predicates/memory/Access"/>
+   <set name="$num_threads" type="Int"/>
+   <set name="Acquire" type="all_predicates/general_predicates/events/Event"/>
+   <set name="Monotonic" type="all_predicates/general_predicates/events/Event"/>
+   <set name="Read" type="all_predicates/general_predicates/memory/Access"/>
+   <set name="Release" type="all_predicates/general_predicates/events/Event"/>
+   <set name="SeqCst" type="all_predicates/general_predicates/events/Event"/>
+   <set name="Write" type="all_predicates/general_predicates/memory/Access"/>
+</node>
+
+<node color="Red">
+   <set name="DataRaceRead" type="all_predicates/general_predicates/memory/Access"/>
+</node>
+
+<node color="Yellow">
+   <type name="all_predicates/general_predicates/memory/RMW"/>
+</node>
+
+<node shape="Dbl Octagon" label="System">
+   <type name="all_predicates/scopes/System"/>
+</node>
+
+<node shape="Hexagon" color="Blue">
+   <type name="all_predicates/llvm_predicates/memory_ordering/Fence"/>
+</node>
+
+<node shape="Inv Trapezoid" color="Green">
+   <type name="all_predicates/general_predicates/memory/SimpleRead"/>
+</node>
+
+<node shape="Octagon" color="White">
+   <type name="all_predicates/scopes/ScopeInstance"/>
+</node>
+
+<node shape="Trapezoid" color="Red">
+   <type name="all_predicates/general_predicates/memory/SimpleWrite"/>
+</node>
+
+<node style="Bold">
+   <set name="Atomic" type="all_predicates/general_predicates/events/Event"/>
+</node>
+
+<node style="Dotted" color="White" label="Event">
+   <type name="all_predicates/general_predicates/events/Event"/>
+</node>
+
+<edge color="Black">
+   <relation name="parent"> <type name="all_predicates/scopes/ScopeInstance"/> <type name="all_predicates/scopes/ScopeInstance"/> </relation>
+</edge>
+
+<edge color="Black" weight="200">
+   <relation name="po_imm"> <type name="all_predicates/general_predicates/events/Event"/> <type name="all_predicates/general_predicates/events/Event"/> </relation>
+</edge>
+
+<edge color="Blue">
+   <relation name="$llvm_sw"> <type name="all_predicates/general_predicates/events/Event"/> <type name="all_predicates/general_predicates/events/Event"/> </relation>
+</edge>
+
+<edge color="Green">
+   <relation name="same_location"> <type name="all_predicates/general_predicates/memory/Access"/> <type name="all_predicates/general_predicates/memory/Access"/> </relation>
+</edge>
+
+<edge color="Red">
+   <relation name="rf"> <type name="all_predicates/general_predicates/memory/Access"/> <type name="all_predicates/general_predicates/memory/Access"/> </relation>
+</edge>
+
+<edge color="Yellow">
+   <relation name="seqcst_order"> <type name="all_predicates/general_predicates/events/Event"/> <type name="all_predicates/general_predicates/events/Event"/> </relation>
+</edge>
+
+<edge visible="no" attribute="yes" constraint="no">
+   <relation name="$execscope_instance"> <type name="all_predicates/general_predicates/events/Event"/> <type name="all_predicates/scopes/ScopeInstance"/> </relation>
+   <relation name="$syncscope_instance"> <type name="all_predicates/general_predicates/events/Event"/> <type name="all_predicates/scopes/ScopeInstance"/> </relation>
+</edge>
+
+<edge visible="no" constraint="no">
+   <relation name="$inclusive_scope"> <type name="all_predicates/general_predicates/events/Event"/> <type name="all_predicates/general_predicates/events/Event"/> </relation>
+   <relation name="$initializes_before"> <type name="all_predicates/general_predicates/memory/Init"/> <type name="all_predicates/general_predicates/events/Event"/> </relation>
+   <relation name="$llvm_coherence_order"> <type name="all_predicates/general_predicates/events/Event"/> <type name="all_predicates/general_predicates/events/Event"/> </relation>
+   <relation name="$llvm_fence_acquire_pairs"> <type name="all_predicates/general_predicates/memory/Access"/> <type name="all_predicates/llvm_predicates/memory_ordering/Fence"/> </relation>
+   <relation name="$llvm_fence_release_pairs"> <type name="all_predicates/llvm_predicates/memory_ordering/Fence"/> <type name="all_predicates/general_predicates/memory/Access"/> </relation>
+   <relation name="$llvm_hb"> <type name="all_predicates/general_predicates/events/Event"/> <type name="all_predicates/general_predicates/events/Event"/> </relation>
+   <relation name="$llvm_may_see"> <type name="all_predicates/general_predicates/memory/Access"/> <type name="all_predicates/general_predicates/memory/Access"/> </relation>
+   <relation name="$llvm_release_seq"> <type name="all_predicates/general_predicates/memory/Access"/> <type name="all_predicates/general_predicates/memory/Access"/> </relation>
+   <relation name="$llvm_strongly_hb"> <type name="all_predicates/general_predicates/events/Event"/> <type name="all_predicates/general_predicates/events/Event"/> </relation>
+   <relation name="$po"> <type name="all_predicates/general_predicates/events/Event"/> <type name="all_predicates/general_predicates/events/Event"/> </relation>
+   <relation name="$same_thread"> <type name="all_predicates/general_predicates/events/Event"/> <type name="all_predicates/general_predicates/events/Event"/> </relation>
+   <relation name="$subscope"> <type name="all_predicates/scopes/ScopeInstance"/> <type name="all_predicates/scopes/ScopeInstance"/> </relation>
+   <relation name="$superscope"> <type name="all_predicates/scopes/ScopeInstance"/> <type name="all_predicates/scopes/ScopeInstance"/> </relation>
+   <relation name="compatible_scope"> <type name="all_predicates/general_predicates/events/Event"/> <type name="all_predicates/general_predicates/events/Event"/> </relation>
+   <relation name="execscope_instance_for"> <type name="all_predicates/scopes/ScopeInstance"/> <type name="all_predicates/general_predicates/events/Event"/> </relation>
+   <relation name="mo"> <type name="all_predicates/general_predicates/memory/Access"/> <type name="all_predicates/general_predicates/memory/Access"/> </relation>
+   <relation name="syncscope_instance_for"> <type name="all_predicates/scopes/ScopeInstance"/> <type name="all_predicates/general_predicates/events/Event"/> </relation>
+</edge>
+
+</view>
+
+</alloy>

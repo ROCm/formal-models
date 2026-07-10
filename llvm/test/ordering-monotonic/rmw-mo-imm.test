@@ -1,0 +1,21 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+$A: store.monotonic p
+$B: store.monotonic p
+
+#thread 1
+$C: rmw.monotonic p
+
+#push llvm_memory_model
+
+// $C can read anything.
+#check sat ($A -> $C) in rf
+#check sat ($B -> $C) in rf
+#check sat $C in InitRead
+
+// If $C follows $B immediately in the monotonic modification order, $C must
+// read from $B.
+#check unsat ($B -> $C) in mo_imm and not ($B -> $C) in rf
+#check sat ($B -> $C) in mo_imm
+

@@ -1,0 +1,23 @@
+// RUN: %gentest -t %t.full llvm-amdgpu --scope-encoding=full %s
+// RUN: %gentest -t %t.optimized llvm-amdgpu --scope-encoding=optimized %s
+
+#workgroup 0
+#wave 0
+#thread 0
+  $S: store data
+  $A: fence.release.ss=workgroup
+  $X: store.monotonic.ss=workgroup p
+
+#wave 1
+#thread 1
+  $Y: load.monotonic.ss=workgroup p
+  $B: fence.acquire.ss=workgroup
+  $L: load data
+
+#push amdgpu_memory_model
+
+// The fences can synchronize since their scopes are inclusive.
+// The syncscopes of X and Y don't directly affect synchronization, but they
+// need to be inclusive to avoid a data race on p.
+
+#check sat ($A -> $B) in llvm_sw

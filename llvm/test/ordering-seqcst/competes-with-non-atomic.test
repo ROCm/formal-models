@@ -1,0 +1,17 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $S0: store.seq_cst p0
+  $L0: load.seq_cst p0
+
+#thread 1
+  $S1: store p0
+
+#push llvm_memory_model
+
+// This must always be a data race since $S1 is not atomic.
+
+#assert ($S0 -> $L0) not in rf
+#assert ($S1 -> $L0) not in rf
+
+#assert $L0 in DataRaceRead

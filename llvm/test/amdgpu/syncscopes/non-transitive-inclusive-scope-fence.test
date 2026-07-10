@@ -1,0 +1,22 @@
+// RUN: %gentest -t %t.full llvm-amdgpu --scope-encoding=full %s
+// RUN: %gentest -t %t.optimized llvm-amdgpu --scope-encoding=optimized %s
+
+#workgroup 0
+#wave 0
+#thread 0
+  $F0: fence.release.ss=wg
+
+#wave 1
+#thread 1
+  $F1: fence.release.ss=system
+
+#workgroup 1
+#wave 2
+#thread 2
+  $F2: fence.release.ss=system
+
+#push amdgpu_memory_model
+
+#check sat
+
+#assert ($F0 -> $F1) + ($F1 -> $F2) in inclusive_scope and ($F0 -> $F2) not in inclusive_scope

@@ -1,0 +1,29 @@
+// RUN: %gentest -t %t llvm %s
+
+// Synchronization via more than one release/acquire handshake is possible.
+
+#thread 0
+  $A: store data
+  $L1: store.release lock1
+
+#thread 1
+  $L2: load.monotonic lock1
+  fence.acq_rel
+  $L3: store.monotonic lock2
+
+#thread 2
+  $L4: load.monotonic lock2
+  fence.acq_rel
+  $L5: store.monotonic lock3
+
+#thread 3
+  $L6: load.acquire lock3
+  $B: load data
+
+#push llvm_memory_model
+
+#push ($L1 -> $L2) + ($L3 -> $L4) + ($L5 -> $L6) in rf
+
+#check sat ($A -> $B) in rf
+#check unsat ($A -> $B) not in rf
+

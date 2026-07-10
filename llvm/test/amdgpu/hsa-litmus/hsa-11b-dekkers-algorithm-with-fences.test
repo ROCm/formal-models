@@ -1,0 +1,33 @@
+// RUN: %gentest -t %t.full llvm-amdgpu --scope-encoding=full %s
+// RUN: %gentest -t %t.optimized llvm-amdgpu --scope-encoding=optimized %s
+
+// This encodes the HSA litmus test "11. Dekker's algorithm" with additional
+// fences from HSA's "Representative Litmus Tests" (Version 1.2):
+// https://hsafoundation.com/wp-content/uploads/2021/02/cat_TestCases-1.2.pdf
+// Note that HSA's scacq and screl orderings correspond to C++'s and LLVM's
+// seq_cst ordering, not the acquire and release orderings.
+
+#workgroup 0
+#wave 0
+#thread 0
+  $SY1: store.monotonic y
+  $F1: fence.seq_cst
+  $LX0: load.monotonic x
+
+#wave 1
+#thread 1
+  $SX1: store.monotonic x
+  $F2: fence.seq_cst
+  $LY0: load.monotonic y
+
+
+#push amdgpu_memory_model
+
+#check sat
+
+// The HSA test requires that the loads can read the initial values, but the
+// LLVM memory model (consistently with the C++20 memory model) does not allow
+// this outcome.
+// #check sat $LY0 + $LX0 in InitRead
+
+#check unsat $LY0 + $LX0 in InitRead

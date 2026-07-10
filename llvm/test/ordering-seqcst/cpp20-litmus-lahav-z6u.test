@@ -1,0 +1,28 @@
+// RUN: %gentest -t %t llvm %s
+
+// This test encodes the example Z6.U from the paper "Repairing
+// Sequential Consistency in C/C++11" by Lahav et al..
+// It is basically a litmus test for the C++20 memory model vs the previous C++
+// memory model: The encoded behavior was previously not allowed, but is in
+// C++20 (because it was possible with common compilation schemes on POWER and
+// ARM).
+
+#thread 0
+  $SX: store.seq_cst x
+  $SY1: store.release y
+
+#thread 1
+  $M: rmw.seq_cst y
+  $LY: load.monotonic y
+
+#thread 2
+  $SY3: store.seq_cst y
+  $LX: load.seq_cst x
+
+
+#push llvm_memory_model
+
+#check sat
+
+// This wasn't allowed before C++20, but is now.
+#check sat ($SY1 -> $M) + ($SY3 -> $LY) in rf and $LX in InitRead

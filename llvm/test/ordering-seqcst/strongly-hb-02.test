@@ -1,0 +1,15 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $R0: load.acquire Y
+  $W1: store.seq_cst X
+
+#thread 1
+  $R1: load.seq_cst Z
+  $W0: store.seq_cst Y
+
+#push llvm_memory_model
+
+#check sat
+
+#check unsat ($W0 -> $R0) in llvm_sw and ($W1 -> $R1) in seqcst_order
