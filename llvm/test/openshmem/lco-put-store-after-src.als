@@ -11,7 +11,7 @@ module memory_consistency/llvm/test/openshmem/lco_put_store_after_src
 //
 //   lco: ld_src(source@PE0) --> st_after(source@PE0)   [blocking put, local]
 
-open memory_consistency/llvm/openshmem_predicates
+open memory_consistency/llvm/openshmem_predicates_c11
 
 one sig PE0, PE1 extends PE {}
 

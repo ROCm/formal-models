@@ -11,7 +11,7 @@ module memory_consistency/llvm/test/openshmem/lco_get_load_after_dst
 //
 //   lco: st_get(dest@PE0) --> ld_after(dest@PE0)   [blocking get, local]
 
-open memory_consistency/llvm/openshmem_predicates
+open memory_consistency/llvm/openshmem_predicates_c11
 
 one sig PE0, PE1 extends PE {}
 

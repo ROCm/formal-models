@@ -10,7 +10,7 @@ module memory_consistency/llvm/test/openshmem/ilv_put_reads_local_store
 //
 //   ilv: st_local(source@PE0) --> ld_src(source@PE0)   [both local to caller PE0]
 
-open memory_consistency/llvm/openshmem_predicates
+open memory_consistency/llvm/openshmem_predicates_c11
 
 one sig PE0, PE1 extends PE {}
 

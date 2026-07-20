@@ -15,7 +15,7 @@ module memory_consistency/llvm/test/openshmem/put_fence_flag
 //     --lco--> PE1.load(data@PE1)
 // so put.ST(data@PE1) api_hb-before PE1.load(data@PE1), forbidding the stale read.
 
-open memory_consistency/llvm/openshmem_predicates
+open memory_consistency/llvm/openshmem_predicates_c11
 
 // --- PEs ---
 one sig PE0, PE1 extends PE {}

@@ -17,7 +17,7 @@ module memory_consistency/llvm/test/openshmem/remote_store_fence_flag
 // Note st_rem is a normal thread access (in program order), yet targets PE1,
 // which the relaxed model now permits and rdo case (i) consumes.
 
-open memory_consistency/llvm/openshmem_predicates
+open memory_consistency/llvm/openshmem_predicates_c11
 
 // --- PEs ---
 one sig PE0, PE1 extends PE {}

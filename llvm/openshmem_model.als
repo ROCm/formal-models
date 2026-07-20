@@ -4,6 +4,11 @@ module memory_consistency/llvm/openshmem_model
 // the OpenSHMEM API-level memory model iff it corresponds to an Alloy instance
 // of this module.
 //
+// This top module uses the LLVM-based axioms (openshmem_predicates.als), i.e.
+// the repo's full LLVM memory model retargeted to api_hb. For the spec's
+// simplified C++/C11 axiom set instead, use openshmem_predicates_c11.als (both
+// share the API-level relations in openshmem_relations.als).
+//
 // -----------------------------------------------------------------------------
 // Step 4 (Fused collectives) - DESIGN NOTE / PARTIAL
 // -----------------------------------------------------------------------------

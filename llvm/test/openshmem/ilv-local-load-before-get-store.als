@@ -10,7 +10,7 @@ module memory_consistency/llvm/test/openshmem/ilv_local_load_before_get_store
 //
 //   ilv: ld_local(dest@PE0) --> st_get(dest@PE0)   [both local to caller PE0]
 
-open memory_consistency/llvm/openshmem_predicates
+open memory_consistency/llvm/openshmem_predicates_c11
 
 one sig PE0, PE1 extends PE {}
 
