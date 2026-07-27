@@ -1,4 +1,4 @@
-module memory_consistency/llvm/test/openshmem/rdo_fence_orders_store_remote_sync
+module memory_consistency/llvm/test/openshmem/api_relations/rdo/rdo_fence_orders_store_remote_sync
 
 // rdo test (fence orders a prior NORMAL store, synchronization through a THIRD
 // PE): as the local-sync version, but the flag lives on PE2 -- PE0 atomic_sets

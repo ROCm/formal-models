@@ -1,15 +1,18 @@
-module memory_consistency/llvm/test/openshmem/lco_get_load_after_dst
+module memory_consistency/llvm/test/openshmem/api_relations/lco/lco_get_nbi_load_race
 
-// lco test 2: a blocking get followed by a local load of the get's destination
-// address. Local Completion Order (lco) must order the get's local destination-
-// store before the subsequent local load, so the load must observe the value
-// the get delivered (the blocking get completes its local store before the
-// later load). No data race.
+// lco relaxation: the same program as lco-get-load-after-dst, but the get is
+// NON-BLOCKING (shmem_get_nbi). lco applies only to blocking operations, so the
+// non-blocking get's local destination-store is NOT ordered before the
+// subsequent local load of the same buffer. The local load and the get's store
+// are then unordered conflicting accesses to dest@PE0 -> DATA RACE. (Formal
+// statement of "you must shmem_quiet after a non-blocking get before reading the
+// destination buffer".)
 //
-//   PE0:  shmem_get(dest, source@PE1, PE1)    // obs: LD source@PE1 ; ST dest@PE0
-//         x = dest                            // local load, same dest address
+//   PE0:  shmem_get_nbi(dest, source@PE1, PE1)  // obs: LD source@PE1 ; ST dest@PE0
+//         x = dest                              // local load, same dest address
 //
-//   lco: st_get(dest@PE0) --> ld_after(dest@PE0)   [blocking get, local]
+// With the get blocking (lco present) the load must read the get's store,
+// race-free; making it nbi removes lco and introduces the race.
 
 open memory_consistency/llvm/openshmem_predicates_c11
 
@@ -31,9 +34,10 @@ fact program {
   op_sb  = op_get -> (ld_get -> st_get)
 
   GetOp = op_get
+  NonBlocking = op_get              // <-- the relaxation: non-blocking get (no lco)
   no PutOp and no AmoOp and no PutSignalOp and no SignalFetchOp
   no FenceOp and no QuietOp and no BarrierOp and no P2PSyncOp and no LockOp
-  no NonBlocking and no NoStore     // blocking get
+  no NoStore
 }
 
 fact locations_and_pes {
@@ -57,16 +61,16 @@ fact scopes_flat {
   all a : Atomic - Init | a.syncscope_instance = System
 }
 
-// The later local load observes the get's store, race-free.
-run get_load_reads_get_store {
+// 1. A data race is reachable: without lco the get's destination-store is
+//    unordered with the later local load of the same buffer.
+run race_reachable {
   openshmem_memory_model
-  (st_get -> ld_after) in rf
-  no_api_races
+  not no_api_races
 } for 0 but 12 Event expect 1
 
-// The later local load cannot read the stale initial value (lco orders the
-// blocking get's store before the load).
-run get_load_cannot_read_init {
+// 2. The later local load is specifically a data-race read (it could read either
+//    the stale initial value or the get's store).
+run later_load_races {
   openshmem_memory_model
-  (Init_dest_pe0 -> ld_after) in rf
-} for 0 but 12 Event expect 0
+  ld_after in DataRaceRead
+} for 0 but 12 Event expect 1

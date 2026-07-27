@@ -1,4 +1,4 @@
-module memory_consistency/llvm/test/openshmem/remote_store_fence_flag
+module memory_consistency/llvm/test/openshmem/api_relations/rdo/remote_store_fence_flag
 
 // Litmus test exercising a NORMAL (non-observable) access that targets a REMOTE
 // PE -- e.g. a direct store through a pointer obtained from shmem_ptr /

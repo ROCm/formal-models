@@ -1,4 +1,4 @@
-module memory_consistency/llvm/test/openshmem/rdo_fence_orders_store_local_sync
+module memory_consistency/llvm/test/openshmem/api_relations/rdo/rdo_fence_orders_store_local_sync
 
 // rdo test (fence orders a prior NORMAL store): PE0 stores to a local address,
 // fences, then atomic_sets a flag on PE1; PE1 waits on that (local) flag, gets a

@@ -1,4 +1,4 @@
-module memory_consistency/llvm/test/openshmem/rdo_put_get_load_race
+module memory_consistency/llvm/test/openshmem/api_relations/rdo/rdo_put_get_load_race
 
 // rdo test 4: the copy chain of test 3 WITHOUT the fence between the put and the
 // get. With no fence there is no rdo edge, so the put's store to PE1:b is

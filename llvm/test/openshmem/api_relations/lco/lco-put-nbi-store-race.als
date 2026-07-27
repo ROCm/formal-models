@@ -1,15 +1,18 @@
-module memory_consistency/llvm/test/openshmem/lco_put_store_after_src
+module memory_consistency/llvm/test/openshmem/api_relations/lco/lco_put_nbi_store_race
 
-// lco test 1: a blocking put followed by a local store to the put's source
-// address. Local Completion Order (lco) must order the put's local source-load
-// before the subsequent local store, so the put's load cannot observe that
-// later store (the blocking put completes its source read before the store
-// overwrites the buffer). No data race.
+// lco relaxation: the same program as lco-put-store-after-src, but the put is
+// NON-BLOCKING (shmem_put_nbi). lco applies only to blocking operations, so the
+// non-blocking put's local source-load is NOT ordered before the subsequent
+// local store to the same buffer. The source-load and the store are then
+// unordered conflicting accesses to source@PE0 -> DATA RACE. (This is the
+// formal statement of "you must shmem_quiet after a non-blocking put before
+// reusing the source buffer".)
 //
-//   PE0:  shmem_put(dest@PE1, source, PE1)   // obs: LD source@PE0 ; ST dest@PE1
-//         source = 1                          // local store, same source address
+//   PE0:  shmem_put_nbi(dest@PE1, source, PE1)  // obs: LD source@PE0 ; ST dest@PE1
+//         source = 1                             // local store, same source address
 //
-//   lco: ld_src(source@PE0) --> st_after(source@PE0)   [blocking put, local]
+// With the put blocking (lco present) this is race-free; making it nbi removes
+// lco and introduces the race.
 
 open memory_consistency/llvm/openshmem_predicates_c11
 
@@ -31,9 +34,10 @@ fact program {
   op_sb  = op_put -> (ld_src -> st_dst)
 
   PutOp = op_put
+  NonBlocking = op_put              // <-- the relaxation: non-blocking put (no lco)
   no GetOp and no AmoOp and no PutSignalOp and no SignalFetchOp
   no FenceOp and no QuietOp and no BarrierOp and no P2PSyncOp and no LockOp
-  no NonBlocking and no NoStore     // blocking put
+  no NoStore
 }
 
 fact locations_and_pes {
@@ -57,16 +61,16 @@ fact scopes_flat {
   all a : Atomic - Init | a.syncscope_instance = System
 }
 
-// The put's source-load reads the original source value, race-free.
-run put_load_reads_original {
+// 1. A data race is reachable: without lco the put's source-load is unordered
+//    with the later store to the same buffer.
+run race_reachable {
   openshmem_memory_model
-  (Init_source_pe0 -> ld_src) in rf
-  no_api_races
+  not no_api_races
 } for 0 but 12 Event expect 1
 
-// The put's source-load cannot read the later local store (lco orders the
-// blocking put's load before it).
-run put_load_cannot_read_later_store {
+// 2. The put's source-load is specifically a data-race read (it could read
+//    either the original value or the later store).
+run source_load_races {
   openshmem_memory_model
-  (st_after -> ld_src) in rf
-} for 0 but 12 Event expect 0
+  ld_src in DataRaceRead
+} for 0 but 12 Event expect 1

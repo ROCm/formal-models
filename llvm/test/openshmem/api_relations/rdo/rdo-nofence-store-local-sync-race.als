@@ -1,4 +1,4 @@
-module memory_consistency/llvm/test/openshmem/rdo_nofence_store_local_sync_race
+module memory_consistency/llvm/test/openshmem/api_relations/rdo/rdo_nofence_store_local_sync_race
 
 // Variant of the local-sync rdo test with the PE0 fence REMOVED. Without the
 // fence there is no rdo edge ordering the prior normal store (st_a0) before the

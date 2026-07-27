@@ -1,35 +1,29 @@
-module memory_consistency/llvm/test/openshmem/rco_quiet_orders_put_cross_pe
+module memory_consistency/llvm/test/openshmem/api_relations/rco/rco_fence_insufficient_cross_pe_race
 
-// rco test: a quiet establishes cross-PE remote completion ordering that a fence
-// could not. PE0 stores a locally, puts it to PE1:b, quiets, then atomic_sets a
-// flag on PE2. PE2 waits on that flag, then gets PE1:b. The get is guaranteed to
-// read the put's store (and hence a's value), race-free.
+// rco relaxation: the same program as rco-quiet-orders-put-cross-pe, but the
+// shmem_quiet is replaced by a shmem_fence. This is the negative companion that
+// shows why the quiet (rco) was needed: the put's store targets PE1 (b@PE1) and
+// the atomic_set's store targets PE2 (c@PE2) -- DIFFERENT PEs. rdo case (ii) only
+// orders fence-separated observable accesses that target the SAME PE, so the
+// fence does NOT order st_b before st_c. The flag can therefore be observed
+// before the put is delivered, and the consumer's get of b@PE1 races with the
+// put's store -> DATA RACE.
 //
-//   PE0:  a = 1                                // normal local store to a@PE0
+//   PE0:  a = 1
 //         shmem_put(dst=b, src=a, pe1)         // obs: LD a@PE0 ; ST b@PE1
-//         shmem_quiet()
+//         shmem_fence()                         // <-- was shmem_quiet()
 //         shmem_atomic_set(dst=c, val=1, pe2)  // obs: ST c@PE2 (atomic)
 //   PE2:  shmem_wait_until(c == 1)             // obs: LD c@PE2 (atomic, local)
 //         shmem_get(dst=d, src=b, pe1)         // obs: LD b@PE1 ; ST d@PE2
 //
-// Ordering chain (delivery of the put to the get):
-//   st_a0 --ilv--> ld_a  (put reads local a=1); op_sb ld_a --> st_b (delivers 1)
-//   st_b --rco(case4)--> st_c --asw--> ld_c --lco--> ld_b
-// so the get's read of b@PE1 must observe the put's store.
-//
-// Why quiet (rco) and not a fence (rdo): st_b targets PE1 and st_c targets PE2,
-// different PEs. rdo case (ii) only relates fence-separated observable accesses
-// that target the SAME PE, so a fence could not order st_b before st_c; rco
-// gives full connectivity across the quiet regardless of target PE.
-//
-// Uses only rf / api_hb / DataRaceRead (no modification order), so it is
-// flavor-independent (valid under both the C11 and LLVM predicates).
+// (The fence still gives rdo case (i) st_a0 --> st_c, and rco/quiet would give
+// full cross-PE connectivity st_b --> st_c, but the fence cannot cross PEs.)
 
 open memory_consistency/llvm/openshmem_predicates_c11
 
 one sig PE0, PE1, PE2 extends PE {}
 
-one sig op_put, op_quiet, op_set extends Operation {}   // PE0
+one sig op_put, op_fence, op_set extends Operation {}   // PE0
 one sig op_wait, op_get extends Operation {}            // PE2
 
 one sig st_a0 extends SimpleWrite {}   // PE0: normal store to a@PE0
@@ -46,7 +40,7 @@ one sig Init_c_pe2 extends Init {}
 one sig Init_d_pe2 extends Init {}
 
 fact program {
-  po_imm = st_a0 -> op_put + op_put -> op_quiet + op_quiet -> op_set
+  po_imm = st_a0 -> op_put + op_put -> op_fence + op_fence -> op_set
          + op_wait -> op_get
 
   issues = op_put -> ld_a + op_put -> st_b
@@ -56,11 +50,11 @@ fact program {
   op_sb  = op_put -> (ld_a -> st_b) + op_get -> (ld_b -> st_d)
 
   PutOp = op_put
-  QuietOp = op_quiet
+  FenceOp = op_fence                 // <-- was QuietOp
   AmoOp = op_set
   P2PSyncOp = op_wait
   GetOp = op_get
-  no FenceOp and no BarrierOp and no PutSignalOp and no SignalFetchOp and no LockOp
+  no QuietOp and no BarrierOp and no PutSignalOp and no SignalFetchOp and no LockOp
   no NonBlocking and no NoStore
 }
 
@@ -69,7 +63,7 @@ fact locations_and_pes {
   PE1.target_of = st_b + ld_b + Init_b_pe1
   PE2.target_of = st_c + ld_c + st_d + Init_c_pe2 + Init_d_pe2
 
-  PE0.home_of = st_a0 + op_put + op_quiet + op_set + Init_a_pe0
+  PE0.home_of = st_a0 + op_put + op_fence + op_set + Init_a_pe0
   PE1.home_of = Init_b_pe1
   PE2.home_of = op_wait + op_get + Init_c_pe2 + Init_d_pe2
 
@@ -91,28 +85,18 @@ fact scopes_flat {
   all a : Atomic - Init | a.syncscope_instance = System
 }
 
-// The intended race-free execution exists: the get reads the put's store to
-// PE1:b (which carries a's value).
-run good_outcome {
+// 1. Even when the wait observes the flag, the get's read of b@PE1 is a data-race
+//    read: the fence could not order the put's cross-PE delivery before the flag.
+run get_read_races {
   openshmem_memory_model
-  (st_c -> ld_c) in rf     // wait observes the flag
-  (st_a0 -> ld_a) in rf    // put reads local a = 1
-  (st_b -> ld_b) in rf     // get reads the put's store
-  no_api_races
+  (st_c -> ld_c) in rf
+  ld_b in DataRaceRead
 } for 0 but 22 Event expect 1
 
-// Guarantee: given the wait observes the flag, the get cannot read the stale
-// initial value of PE1:b -- the quiet's rco ordering delivers the put.
-run get_loads_put_not_stale {
+// 2. No race-free execution delivers the put to the get (that would require rco).
+run no_racefree_delivery {
   openshmem_memory_model
   (st_c -> ld_c) in rf
-  (Init_b_pe1 -> ld_b) in rf
-} for 0 but 22 Event expect 0
-
-// The value delivered is a=1: the put's source-load cannot read the stale
-// initial value of a@PE0 (ilv), so st_b carries a's value.
-run put_loaded_local_store {
-  openshmem_memory_model
-  (st_c -> ld_c) in rf
-  (Init_a_pe0 -> ld_a) in rf
+  (st_b -> ld_b) in rf
+  no_api_races
 } for 0 but 22 Event expect 0

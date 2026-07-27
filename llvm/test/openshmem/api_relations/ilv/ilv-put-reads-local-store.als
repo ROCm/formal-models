@@ -1,4 +1,4 @@
-module memory_consistency/llvm/test/openshmem/ilv_put_reads_local_store
+module memory_consistency/llvm/test/openshmem/api_relations/ilv/ilv_put_reads_local_store
 
 // ilv test 1: a store to local memory followed by a put that reads the same
 // (local source) address. Implicit Local Visibility (ilv) must order the local
@@ -58,14 +58,21 @@ fact scopes_flat {
 }
 
 // The put's source-load reads the local store, race-free.
-run put_reads_local_store {
+// 1. Expected behavior is satisfiable: the put's source-load reads the store.
+run can_read_from_st_local {
   openshmem_memory_model
   (st_local -> ld_src) in rf
-  no_api_races
 } for 0 but 12 Event expect 1
 
-// The put's source-load cannot read the stale initial value (ilv forbids it).
-run put_cannot_read_init {
+// 2. No alternative to the expected behavior: the source-load reads the store
+//    in every legal execution.
+run cannot_not_read_from_st_local {
   openshmem_memory_model
-  (Init_source_pe0 -> ld_src) in rf
+  (st_local -> ld_src) not in rf
+} for 0 but 12 Event expect 0
+
+// 3. No data race in any legal execution.
+run no_data_race {
+  openshmem_memory_model
+  not no_api_races
 } for 0 but 12 Event expect 0

@@ -1,4 +1,4 @@
-module memory_consistency/llvm/test/openshmem/rdo_put_fence_put
+module memory_consistency/llvm/test/openshmem/api_relations/rdo/rdo_put_fence_put
 
 // rdo test 1: two puts to the same remote address separated by a fence, issued
 // by a single thread on PE0. Remote Delivery Order (rdo) must order the first

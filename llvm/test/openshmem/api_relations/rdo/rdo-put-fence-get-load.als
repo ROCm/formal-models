@@ -1,4 +1,4 @@
-module memory_consistency/llvm/test/openshmem/rdo_put_fence_get_load
+module memory_consistency/llvm/test/openshmem/api_relations/rdo/rdo_put_fence_get_load
 
 // rdo test 3: a put to a remote address, a fence, then a get reading back that
 // remote address, then a local load of the get's destination -- all on a single
@@ -72,24 +72,22 @@ fact scopes_flat {
 
 // The intended ordered copy chain exists and is race-free: the get reads the
 // put's delivered value and the final load reads the get's delivered value.
-run ordered_chain_exists {
+// 1. Expected behavior is satisfiable: the get reads the put's store and the
+//    final load reads the get's store (the ordered copy chain).
+run can_deliver_chain {
   openshmem_memory_model
-  (Init_a_pe0 -> ld_a) in rf
   (st_b -> ld_b) in rf
   (st_c -> ld_final) in rf
-  no_api_races
 } for 0 but 16 Event expect 1
 
-// The get's load of PE1:b cannot read the stale initial value: rdo orders the
-// put's store before it.
-run get_reads_delivered_b {
+// 2. No alternative: both delivery reads hold in every legal execution.
+run cannot_not_deliver_chain {
   openshmem_memory_model
-  (Init_b_pe1 -> ld_b) in rf
+  ((st_b -> ld_b) not in rf) or ((st_c -> ld_final) not in rf)
 } for 0 but 16 Event expect 0
 
-// The final local load of c cannot read the stale initial value: lco orders the
-// get's local store before it.
-run final_load_reads_delivered_c {
+// 3. No data race in any legal execution.
+run no_data_race {
   openshmem_memory_model
-  (Init_c_pe0 -> ld_final) in rf
+  not no_api_races
 } for 0 but 16 Event expect 0

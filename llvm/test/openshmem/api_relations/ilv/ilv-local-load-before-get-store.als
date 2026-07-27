@@ -1,4 +1,4 @@
-module memory_consistency/llvm/test/openshmem/ilv_local_load_before_get_store
+module memory_consistency/llvm/test/openshmem/api_relations/ilv/ilv_local_load_before_get_store
 
 // ilv test 3: a load from local memory followed by a get whose destination is
 // the same (local) address. Implicit Local Visibility (ilv) must order the
@@ -57,14 +57,21 @@ fact scopes_flat {
 }
 
 // The local load observes the pre-get initial value, race-free.
-run load_reads_pre_get_value {
+// 1. Expected behavior is satisfiable: the local load reads the pre-get value.
+run can_read_pre_get_value {
   openshmem_memory_model
   (Init_dest_pe0 -> ld_local) in rf
-  no_api_races
 } for 0 but 12 Event expect 1
 
-// The local load cannot read the get's store (ilv orders the load before it).
-run load_cannot_read_get {
+// 2. No alternative: the local load reads the pre-get value in every legal
+//    execution (it can never read the get's store).
+run cannot_not_read_pre_get_value {
   openshmem_memory_model
-  (st_get -> ld_local) in rf
+  (Init_dest_pe0 -> ld_local) not in rf
+} for 0 but 12 Event expect 0
+
+// 3. No data race in any legal execution.
+run no_data_race {
+  openshmem_memory_model
+  not no_api_races
 } for 0 but 12 Event expect 0

@@ -1,4 +1,4 @@
-module memory_consistency/llvm/test/openshmem/rdo_put_put_race
+module memory_consistency/llvm/test/openshmem/api_relations/rdo/rdo_put_put_race
 
 // rdo test 2: two puts to the same remote address WITHOUT a fence between them,
 // issued by a single thread on PE0. With no fence there is no rdo edge, so the

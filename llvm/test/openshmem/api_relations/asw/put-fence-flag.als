@@ -1,4 +1,4 @@
-module memory_consistency/llvm/test/openshmem/put_fence_flag
+module memory_consistency/llvm/test/openshmem/api_relations/asw/put_fence_flag
 
 // Litmus test for the OpenSHMEM API-level memory model: the canonical
 // message-passing idiom across two PEs.

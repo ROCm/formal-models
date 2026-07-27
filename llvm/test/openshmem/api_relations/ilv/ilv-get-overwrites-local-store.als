@@ -1,4 +1,4 @@
-module memory_consistency/llvm/test/openshmem/ilv_get_overwrites_local_store
+module memory_consistency/llvm/test/openshmem/api_relations/ilv/ilv_get_overwrites_local_store
 
 // ilv test 2: a store to local memory followed by a get whose destination is
 // the same (local) address. Implicit Local Visibility (ilv) must order the
@@ -66,17 +66,21 @@ fact scopes_flat {
   all a : Atomic - Init | a.syncscope_instance = System
 }
 
-// The final local read observes the get's store, race-free.
-run final_state_is_get {
+// The final local read can observe the get's store.
+run can_read_from_st_get {
   openshmem_memory_model
   (st_get -> ld_final) in rf
-  no_api_races
 } for 0 but 14 Event expect 1
 
-// The final local read cannot observe the overwritten local store (ilv orders
-// the local store before the get's store, and lco orders the get's store before
-// the read, so the get wins).
-run final_state_not_store {
+// The final local read cannot *not* observe the get's store.
+run cannot_not_read_from_st_get {
   openshmem_memory_model
-  (st_local -> ld_final) in rf
+  (st_get -> ld_final) not in rf
 } for 0 but 14 Event expect 0
+
+// There can be no data race in any legal execution
+run no_data_race {
+  openshmem_memory_model
+  not no_api_races
+} for 0 but 14 Event expect 0
+
