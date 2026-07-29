@@ -15,8 +15,13 @@ There are two groups:
 - **Part B — Targeted relation tests** (`api_relations/`): each isolates one
   API-level ordering relation (ilv/lco/rdo/rco/asw), with relaxation/race
   variants where they are meaningful.
+- **Part C — com_id extension** (`canonical/mp/comid/`): MP variants exercising
+  the optional communication-identifier layer, where matching (or comparable)
+  com_ids recover the original behavior and incomparable com_ids induce a race or
+  non-SC behavior.
 
-All 25 Part A files and all 19 Part B files pass their checks.
+All 25 Part A files, all 19 Part B files, and all 5 Part C files pass their
+checks.
 
 ---
 
@@ -495,6 +500,58 @@ remove).
   execution at all.
 
 ---
+
+# Part C — com_id extension (optional)
+
+An optional communication-identifier (com_id) layer lives in
+`llvm/openshmem_comid.als`. It is additive: the base model and every Part A/B test
+are unchanged. Tests opt in by opening `openshmem_comid` and using
+`openshmem_comid_memory_model` / `no_api_races_comid`.
+
+## The extension
+
+- Every access and operation carries a com_id; observable accesses inherit their
+  operation's com_id; untagged events default to the global com_id — the top of a
+  parent/child hierarchy (greater than all other com_ids).
+- Each API relation is gated per com_id c: an edge is established only if
+  (1) its triggering operation(s) have com_id >= c, and (2) any *non-observable
+  access* endpoint has com_id <= c. Observable-access endpoints are exempt from
+  (2) — they are already covered by (1) through their issuing operation. So a
+  relation whose endpoints are all observable (notably **asw**) fires whenever its
+  triggering ops' com_ids are **comparable** (equal, or ancestor/descendant) and
+  fails only for **incomparable (sibling)** com_ids.
+- `api_hb` is the UNION over c of the transitive closures of the c-gated relations
+  together with `sw` and preserved program order (`ppo`). Closing per-com_id and
+  then unioning means an api_hb path threads its API-relation edges through a
+  single common com_id; only sw and ppo bridge across com_ids.
+- `ppo` relaxes program order to the pairs a sane architecture keeps: same-address
+  accesses, accesses before a store-release (and the release), a load-acquire (and
+  accesses after it), and accesses on either side of a fence.
+
+## MP variants (`canonical/mp/comid/`, all validated)
+
+| File | com_ids | Data race? | Outcome |
+|---|---|---|---|
+| mp-comid-match | one shared C1 | no | **SC** — recovers plain MP (stale x forbidden) |
+| mp-comid-parent-child | producer child, consumer parent (comparable) | no | **SC** — comparable com_ids still synchronize |
+| mp-comid-atomic-match | one shared C1, atomic data | no | **SC** — stale x forbidden |
+| mp-comid-mismatch-race | producer/consumer sibling com_ids | **yes** | asw bridge missing -> get's read of x races |
+| mp-comid-mismatch-nonsc | sibling com_ids, atomic data | no | **non-SC** — stale x allowed, race-free |
+
+The pairing is the point: matching (or comparable ancestor/descendant) com_ids
+reproduce the original ordering (race-free, SC); incomparable *sibling* com_ids
+drop the asw synchronization between the flag's writer and reader, giving a data
+race for ordinary data (mp-comid-mismatch-race) or a non-SC stale read for atomic
+data (mp-comid-mismatch-nonsc).
+
+## Why asw is the pivotal relation
+
+For asw both endpoints are observable, so condition (2) does not apply; the gate
+reduces to "both synchronizing ops >= c". A valid c (a common descendant of the
+two ops' com_ids) exists exactly when those com_ids are comparable. Hence a
+producer/consumer com_id mismatch (siblings) removes the cross-PE asw bridge,
+while rdo (fence-triggered) and lco (blocking-op-triggered) still form within each
+PE — leaving no common com_id to join them across the missing bridge.
 
 # Summary of expected behaviors
 

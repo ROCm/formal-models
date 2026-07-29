@@ -22,6 +22,10 @@ build/jdk-17.0.10+7/bin/java -jar build/org.alloytools.alloy.dist.jar \
 - **`api_relations/`** — targeted tests organized by the API-level ordering
   relation each exercises (`ilv/`, `lco/`, `rdo/`, `rco/`, `asw/`), each with
   relaxation/race variants where meaningful. See `api_relations/README.md`.
+- **`canonical/mp/comid/`** — MP variants exercising the optional
+  communication-identifier (`com_id`) extension (`llvm/openshmem_comid.als`),
+  where matching com_ids recover the original behavior and mismatching com_ids
+  induce a race or non-SC behavior. See `canonical/mp/comid/README.md`.
 - **`notation/`** — the same tests expressed in the gentest DSL (work in
   progress; gated out of llvm-lit via `lit.local.cfg`).
 
