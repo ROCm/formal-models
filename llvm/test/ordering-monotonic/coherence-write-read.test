@@ -1,0 +1,25 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $S1: store.monotonic p
+
+#thread 1
+  $S2: store.monotonic p
+  $L: load.monotonic p
+
+#thread 2
+  $L1: load.monotonic p
+  $L2: load.monotonic p
+
+#push llvm_memory_model
+
+#check sat
+
+#assert no DataRaceRead
+#check sat ($S1 -> $L) in rf
+#check sat ($S2 -> $L) in rf
+
+// The current LLVM model allows this outcome, even though C++'s write-read
+// coherence rule disallows it:
+#check sat $S1 -> $L + $S1 -> $L1 + $S2 -> $L2 in rf
+
