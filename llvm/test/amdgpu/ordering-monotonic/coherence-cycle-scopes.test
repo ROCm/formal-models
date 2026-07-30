@@ -1,0 +1,28 @@
+// RUN: %gentest -t %t llvm-amdgpu %s
+
+#workgroup 0
+#thread 0
+  $S1: store.monotonic p
+
+#thread 1
+  $L1: load.monotonic.ss=workgroup p
+  $F: fence.release
+  $S2: store.unordered p
+
+#workgroup 1
+#thread 2
+  $L2: load.acquire p
+  $L3: load.monotonic p
+
+#push amdgpu_memory_model
+
+#assert no DataRaceRead
+
+#push (S2 -> L2) in rf
+
+#check sat
+
+// This is currently allowed, even though it violates read-read coherence,
+// because the reads don't have inclusive scopes.
+#check sat $S1 -> $L1 in rf and $L3 in InitRead
+
