@@ -95,7 +95,13 @@ sig AmoOp        in Operation {}   // atomic memory operations
 sig PutSignalOp  in Operation {}   // shmem_put_signal[_nbi]
 sig SignalFetchOp in Operation {}  // shmem_signal_fetch
 sig FenceOp      in Operation {}   // shmem_fence
-sig QuietOp      in Operation {}   // shmem_quiet
+// shmem_quiet. Carries quiet_order -- the quiet analog of memory_ordering's
+// seqcst_order field: a total order over shmem_quiet operations, populated by
+// api_quiet_sc (openshmem_predicates.als) to enforce quiet-based sequential
+// consistency. Unconstrained unless that predicate is invoked.
+sig QuietOp      in Operation {
+  quiet_order : set QuietOp
+}
 sig BarrierOp    in Operation {}   // shmem_barrier_all, shmem_sync[_all]
 sig P2PSyncOp    in Operation {}   // shmem_wait_until*, shmem_test*
 sig LockOp       in Operation {}   // shmem_set/clear/test_lock
