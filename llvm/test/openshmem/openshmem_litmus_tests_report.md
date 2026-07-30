@@ -20,7 +20,7 @@ There are two groups:
   com_ids recover the original behavior and incomparable com_ids induce a race or
   non-SC behavior.
 
-All 25 Part A files, all 19 Part B files, and all 5 Part C files pass their
+All 26 Part A files, all 19 Part B files, and all 5 Part C files pass their
 checks.
 
 ---
@@ -126,6 +126,23 @@ Why SC survives the substitution: the fence still gives `st_x --rdo--> set.ST(fl
 (the normal store is a memory access before the fence, rdo case i), and
 `set.ST(flag) --asw--> wait.LD(flag) --lco--> r1=x` orders the consumer's plain
 load after the wait — so the ordinary load still observes the delivered x.
+
+**mp-relaxed** — *relaxation, race-free but non-SC.* Keeps every access ATOMIC
+(x delivered by atomic_set, read by atomic_fetch) but drops the fence. Being
+atomic there is no data race, yet with no fence nothing orders st_x before the
+flag, so the consumer may observe the flag and still read the stale initial x:
+the weak outcome is **allowed** (`weak_outcome_allowed` SAT, `no_data_race`
+UNSAT). This is MP's race-free non-SC counterpart to the other families' relaxed
+variants.
+```
+PE0: shmem_atomic_set(x, 1, pe1)     # ST x@PE1 (atomic)   <-- was put; fence removed
+     shmem_atomic_set(flag, 1, pe1)  # ST flag@PE1 (atomic)
+PE1: shmem_wait_until(flag == 1)     # LD flag@PE1 (atomic, local)
+     r1 = shmem_atomic_fetch(x, pe1) # LD x@PE1 (atomic)   <-- was get
+```
+The consumer side is still ordered (`st_flag --asw--> ld_flag --lco--> ld_x`);
+it is the missing producer fence (no `rdo` st_x --> st_flag) that admits the
+stale read. Re-inserting the fence restores SC.
 
 **mp-race-nofence** — *relaxation:* drop the fence. **racy.** Without `rdo` the
 put's store of x is unordered relative to the flag, so the get's read of x races
@@ -565,6 +582,7 @@ per family is marked *(ref)*.
 |---|---|---|---|---|
 | mp-all-api *(ref)* | MP | no | **SC** | x always delivered |
 | mp-partial-normal-data | MP | no | **SC** (retained) | normal data + API sync |
+| mp-relaxed | MP | no | **non-SC** | atomic data, no fence -> stale x allowed |
 | mp-race-nofence | MP | **yes** | racy | fence removed |
 | mp-race-remote-sync | MP | **yes** | racy | remote sync kills lco |
 | sb-all-api-relaxed *(ref)* | SB | no | **non-SC** | no SC ref exists; weak allowed |
