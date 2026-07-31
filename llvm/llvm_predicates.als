@@ -130,6 +130,19 @@ pred llvm_monotonic_impl[hb: Event -> Event] {
   // Modification orders are compatible with happens-before.
   no mo & ~hb
 
+  // A monotonic read R doesn't read from a monotonic write W2 if W2 is
+  // modification-ordered after a monotonic write W1 that happens-after R.
+  // This enforces C++'s read-write coherence rule:
+  //   https://eel.is/c++draft/basic.exec#intro.races-13
+  no hb.mo.rf & (iden :> (Read & Monotonic))
+
+  // A monotonic read R doesn't read from a monotonic write W1 if there is
+  // another monotonic write W2 that is modification-ordered after W1 and
+  // happens-before R.
+  // This enforces C++'s write-read coherence rule:
+  //   https://eel.is/c++draft/basic.exec#intro.races-14
+  no ~rf.mo.hb & (iden :> (Read & Monotonic))
+
   // "If one atomic read happens before another atomic read of the same address
   // and both are at least monotonic, the later read must not see an earlier
   // value in the address's modification order."

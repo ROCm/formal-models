@@ -21,7 +21,6 @@
 #check unsat ($S2 -> $L) in rf
 #check sat ($S3 -> $L) in rf
 
-// The current LLVM model allows this outcome, even though C++'s write-read
-// coherence rule disallows it:
-#check sat $S1 -> $L + $S1 -> $L1 + $S2 -> $L2 in rf
+// C++'s write-read coherence rule disallows this behavior:
+#check unsat $S1 -> $L + $S1 -> $L1 + $S2 -> $L2 in rf
 
