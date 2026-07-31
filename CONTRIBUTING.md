@@ -28,7 +28,7 @@ Search existing issues before opening a new one. If your report matches an open 
 When you create a pull request, target the **`main`** branch.
 
 1. Identify the issue you want to address (open a [GitHub Issue](../../issues) first if one does not exist).
-2. Create a branch from `main`, make your changes, and run the relevant tests locally.
+2. Create a branch from `main`, make your changes, and run the relevant tests locally. Follow the [coding guidelines](./docs/coding-guidelines.md).
 3. Target the **`main`** branch when opening the pull request.
 4. Ensure all CI workflows pass. Pull requests run security scans (gitleaks, zizmor, bandit, and trivy).
 5. Submit your PR and work with the reviewer or maintainer to get it approved.

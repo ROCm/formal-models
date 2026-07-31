@@ -131,6 +131,8 @@ Run them with:
 make check-gentest
 ```
 
+Follow the [coding guidelines](./docs/coding-guidelines.md) for contributions.
+
 ### Advanced: Benchmarking
 
 You can benchmark the running time of the Alloy analyzer on (a subset of) a test suite as follows:
