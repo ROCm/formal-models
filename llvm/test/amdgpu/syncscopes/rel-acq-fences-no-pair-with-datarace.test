@@ -1,0 +1,21 @@
+// RUN: %gentest -t %t.full llvm-amdgpu --scope-encoding=full %s
+// RUN: %gentest -t %t.optimized llvm-amdgpu --scope-encoding=optimized %s
+
+#workgroup 0
+#thread 0
+  $S: store data
+  $A: fence.release
+  $X: store.monotonic.ss=workgroup p
+
+#workgroup 1
+#thread 1
+  $Y: load.monotonic.ss=workgroup p
+  $B: fence.acquire
+  $L: load data
+
+#push amdgpu_memory_model
+
+
+#check sat
+
+#assert $Y + $L in DataRaceRead
