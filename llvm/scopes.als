@@ -119,6 +119,18 @@ pred flat_scope_hierarchy {
 
 // Helper functions to constrain the scope hierarchy:
 
+// Connects each ScopeInstance to all its superscope instances (including
+// itself).
+fun superscope : ScopeInstance -> ScopeInstance {
+  *parent
+}
+
+// Connects each ScopeInstance to all its subscope instances (including
+// itself).
+fun subscope : ScopeInstance -> ScopeInstance {
+  ~superscope
+}
+
 // The set of scope instances that are ancestors of both s1 and s2 (including
 // s1/s2 if s1 = s2).
 fun common_ancestors[s1, s2 : ScopeInstance] : set ScopeInstance {
