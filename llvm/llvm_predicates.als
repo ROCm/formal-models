@@ -20,9 +20,9 @@ open util/relation
 // vanilla LLVM memory model. The target-specific scope hierarchy and scope
 // compatibility are left unconstrained.
 pred llvm_memory_model {
-  llvm_happens_before
-  llvm_monotonic_impl
-  llvm_seqcst_impl
+  llvm_coherent_reads_from[llvm_hb]
+  llvm_monotonic_impl[llvm_hb]
+  llvm_seqcst_impl[llvm_hb]
 }
 
 // A variant of the LLVM memory model where all scopes are compatible with each
@@ -50,23 +50,23 @@ pred llvm_memory_model_flat_with_scope_inclusion {
 fun llvm_hb : Event -> Event { ^(po_imm + llvm_sw) + initializes_before }
 
 // Connects Reads to all Writes that they could read from without violating
-// happens-before.
-fun llvm_may_see : Write -> Read {
+// the provided happens-before relation.
+fun llvm_may_see[hb: Event -> Event] : Write -> Read {
   // Reads can't read from Writes that have been overwritten, from writes that
   // happen after them, or from themselves.
-  (Write <: same_location :> Read) - (write_between[llvm_hb] + ~llvm_hb + iden)
+  (Write <: same_location :> Read) - (write_between[hb] + ~hb + iden)
 }
 
 // This predicate entails that Reads read from a Write that they can read from
-// according to happens-before, unless they are part of a data race (in which
-// case they read undef).
-pred llvm_happens_before {
+// according to the provided happens-before relation, unless they are part of a
+// data race (in which case they read undef).
+pred llvm_coherent_reads_from[hb: Event -> Event] {
   // This constraint is load-bearing: sw edges must follow rf edges, and hb is
   // what makes rf obey causality, so we need this additional fact to ensure hb
   // is a partial order.
-  acyclic[llvm_hb, Event]
+  acyclic[hb, Event]
 
-  rf in llvm_may_see
+  rf in llvm_may_see[hb]
 
   // If a Read may read from more than one candidate (including the initial
   // value) and at least one of the involved accesses is not Atomic, we have a
@@ -74,9 +74,9 @@ pred llvm_happens_before {
   // If any pair of involved accesses has incompatible scopes, we also have a
   // data race.
   all R : Read | R in DataRaceRead iff (
-      let involved_accs = R + llvm_may_see.R |
+      let involved_accs = R + (llvm_may_see[hb]).R |
         (involved_accs not in Atomic or (involved_accs -> involved_accs) not in compatible_scope) and
-          (#llvm_may_see.R >= 2)
+          (#(llvm_may_see[hb]).R >= 2)
     )
 }
 
@@ -115,7 +115,7 @@ fun llvm_fence_acquire_pairs : Read -> Fence {
 // Monotonic (aka C++ "relaxed") atomics
 // =============================================================================
 
-pred llvm_monotonic_impl {
+pred llvm_monotonic_impl[hb: Event -> Event] {
   // The modification order only relates monotonic modifications to the same
   // location.
   mo in Monotonic -> Monotonic
@@ -128,13 +128,13 @@ pred llvm_monotonic_impl {
   (Write & Monotonic) <: ((same_location - iden) & compatible_scope) :> (Write & Monotonic) in mo + ~mo
 
   // Modification orders are compatible with happens-before.
-  no mo & ~llvm_hb
+  no mo & ~hb
 
   // "If one atomic read happens before another atomic read of the same address
   // and both are at least monotonic, the later read must not see an earlier
   // value in the address's modification order."
   all disj e1, e2 : Read & Monotonic |
-    (e1 -> e2) in (llvm_hb & same_location & compatible_scope) => (
+    (e1 -> e2) in (hb & same_location & compatible_scope) => (
       some (e1 + e2) & DataRaceRead or // If one of them is part of a data race, there is no constraint.
       (rf.e1 + rf.e2) not in Monotonic or // If one of the reads is not from a monotonic write, there is no constraint.
       (rf.e2 -> rf.e1) not in mo
@@ -178,11 +178,11 @@ fun llvm_coherence_order : Atomic -> Atomic {
 //   before C, and C is sequenced before D, or
 // - there is an evaluation B such that A strongly happens before B, and B
 //   strongly happens before D."
-fun llvm_strongly_hb : Event -> Event {
-  ^(po + (SeqCst <: llvm_sw :> SeqCst) + po.llvm_hb.po) + initializes_before
+fun llvm_strongly_hb[hb: Event -> Event] : Event -> Event {
+  ^(po + (SeqCst <: llvm_sw :> SeqCst) + po.hb.po) + initializes_before
 }
 
-pred llvm_seqcst_impl {
+pred llvm_seqcst_impl[hb: Event -> Event] {
   seqcst_order = ^seqcst_order
   acyclic[seqcst_order, SeqCst]
 
@@ -193,7 +193,7 @@ pred llvm_seqcst_impl {
   // From the C++ Standard, atomics.order.4 (https://eel.is/c++draft/atomics.order#4):
   // "First, if A and B are memory_order::seq_cst operations and A strongly
   // happens before B, then A precedes B in S."
-  SeqCst <: llvm_strongly_hb :> SeqCst in seqcst_order
+  SeqCst <: llvm_strongly_hb[hb] :> SeqCst in seqcst_order
 
   // "Second, for every pair of atomic operations A and B on an object M, where
   // A is coherence-ordered before B, the following four conditions are required
@@ -206,14 +206,14 @@ pred llvm_seqcst_impl {
   //   memory_order::seq_cst operation, then X precedes B in S; and
   // - if a memory_order::seq_cst fence X happens before A and B happens before
   //   a memory_order::seq_cst fence Y, then X precedes Y in S."
-  SeqCst <: (maybe[(SeqCst & Fence) <: (llvm_hb & compatible_scope)]).
+  SeqCst <: (maybe[(SeqCst & Fence) <: (hb & compatible_scope)]).
       (llvm_coherence_order & compatible_scope).
-      (maybe[(llvm_hb & compatible_scope) :> (SeqCst & Fence)]) :> SeqCst in seqcst_order
+      (maybe[(hb & compatible_scope) :> (SeqCst & Fence)]) :> SeqCst in seqcst_order
   // Note: compatible_scope only relates Atomic Events, so we don't need to
   //       restrict to Atomic explicitly.
 }
 
-pred alternative_seqcst_impl {
+pred alternative_seqcst_impl[hb: Event -> Event] {
   // It's actually not necessary to explicitly represent the seqcst_order, we
   // can instead use this acyclicity constraint. This constraint is satisfied
   // iff a suitable total seqcst_order exists.
@@ -221,8 +221,8 @@ pred alternative_seqcst_impl {
   // C11 and OpenCL".
   // Currently not used, left for reference.
   acyclic[
-    (SeqCst <: llvm_strongly_hb :> SeqCst) +
-    (SeqCst <: (maybe[(SeqCst & Fence) <: (llvm_hb & compatible_scope)]).
+    (SeqCst <: llvm_strongly_hb[hb] :> SeqCst) +
+    (SeqCst <: (maybe[(SeqCst & Fence) <: (hb & compatible_scope)]).
         (llvm_coherence_order & compatible_scope).
-        (maybe[(llvm_hb & compatible_scope) :> (SeqCst & Fence)]) :> SeqCst), SeqCst]
+        (maybe[(hb & compatible_scope) :> (SeqCst & Fence)]) :> SeqCst), SeqCst]
 }

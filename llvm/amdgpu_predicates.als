@@ -10,9 +10,9 @@ open memory_consistency/llvm/scopes
 open util/relation
 
 pred amdgpu_memory_model {
-  llvm_happens_before
-  llvm_monotonic_impl
-  llvm_seqcst_impl
+  llvm_coherent_reads_from[llvm_hb]
+  llvm_monotonic_impl[llvm_hb]
+  llvm_seqcst_impl[llvm_hb]
 
   scope_inclusion_is_scope_compatibility
   amdgpu_max_scope_depth

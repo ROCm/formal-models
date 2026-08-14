@@ -21,8 +21,8 @@ pred no_strongly_hb_seqcst_impl {
 
 
 pred no_strongly_hb_memory_model {
-  llvm_happens_before
-  llvm_monotonic_impl
+  llvm_coherent_reads_from[llvm_hb]
+  llvm_monotonic_impl[llvm_hb]
   no_strongly_hb_seqcst_impl
 
   scope_inclusion_is_scope_compatibility

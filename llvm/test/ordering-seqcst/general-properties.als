@@ -65,6 +65,6 @@ run acyclic_coherence_order {
 run implicit_order {
   llvm_memory_model
 
-  not alternative_seqcst_impl
+  not alternative_seqcst_impl[llvm_hb]
 
 } for 6 but 3 ScopeInstance expect 0
