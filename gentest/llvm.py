@@ -28,6 +28,15 @@ class LLVMIRTest(ModelTest):
         self.scope_encoding = ScopeEncoding.FULL
         if parsed_args is not None:
             self.scope_encoding = parsed_args.scope_encoding
+        self.legal_opcodes: set[str] = {"load", "store", "rmw", "fence"}
+        self.legal_ordering_constraints = {
+            "unordered",
+            "monotonic",
+            "acquire",
+            "release",
+            "acq_rel",
+            "seq_cst",
+        }
 
     @classmethod
     def register_arg_subparser(cls, subparsers) -> None:
@@ -56,21 +65,87 @@ class LLVMIRTest(ModelTest):
             "st": "thread",
         }
 
-    legal_opcodes = {
-        "load",
-        "store",
-        "rmw",
-        "fence",
-    }
+    def validate_instruction(self, inst: Instruction) -> bool:
+        """Validate semantic constraints on the provided instruction.
 
-    legal_ordering_constraints = {
-        "unordered",
-        "monotonic",
-        "acquire",
-        "release",
-        "acq_rel",
-        "seq_cst",
-    }
+        Raises ParseError if an error is found, returns True if validation is
+        successful, returns False if the instruction was not checked.
+        """
+
+        def error_if(cond, errmsg):
+            if cond:
+                raise self._parse_error(errmsg)
+
+        ordering = inst.additional_data.get("ordering")
+        syncscope = inst.additional_data.get("syncscope")
+
+        def access_checks():
+            error_if(
+                len(inst.operands) > 1,
+                f"too many address arguments for {inst.opcode}",
+            )
+            error_if(inst.addr is None, f"missing address argument for {inst.opcode}")
+            error_if(
+                syncscope is not None and ordering is None,
+                "superfluous scope on a non-atomic operation",
+            )
+
+        match inst.opcode:
+            case "load":
+                access_checks()
+                error_if(
+                    ordering in ("release", "acq_rel"),
+                    "load cannot release",
+                )
+                return True
+            case "store":
+                access_checks()
+                error_if(
+                    ordering in ("acquire", "acq_rel"),
+                    "store cannot acquire",
+                )
+                return True
+            case "rmw":
+                access_checks()
+                error_if(
+                    ordering in (None, "unordered"),
+                    "rmw must be at least monotonic",
+                )
+                return True
+            case "fence":
+                error_if(
+                    len(inst.operands) > 0, "superfluous address argument for fence"
+                )
+                error_if(
+                    ordering not in ("release", "acquire", "acq_rel", "seq_cst"),
+                    "fences must have an ordering that is stricter than monotonic",
+                )
+                return True
+        return False
+
+    def parse_modifier(self, dest: dict[str, Any], modifier: str) -> bool:
+        """Parse the provided modifier and store relevant data to the dest
+        dictionary. Dest contains information from previous calls and is added
+        to the instructions additional_data once the instruction is parsed
+        completely.
+
+        Raises ParseError if an error is found, returns True if parsing is
+        successful, returns False if the modifier is not recognized.
+        """
+        if modifier in self.legal_ordering_constraints:
+            if dest.get("ordering") is not None:
+                raise self._parse_error(f"more than one ordering constraint")
+            dest["ordering"] = modifier
+            return True
+        elif modifier.startswith("ss="):
+            if dest.get("syncscope") is not None:
+                raise self._parse_error(f"more than one syncscope")
+            modifier = modifier[3:]
+            if mat := self.get_syncscope_mapping().get(modifier):
+                dest["syncscope"] = mat
+                return True
+            raise self._parse_error(f'unknown syncscope "{modifier}"')
+        return False
 
     def parse_instruction(
         self, line: str, var: Optional[str], scope: Topology.ScopeInstance
@@ -87,49 +162,23 @@ class LLVMIRTest(ModelTest):
         if opcode not in self.legal_opcodes:
             raise self._parse_error(f'unknown opcode "{opcode}"')
 
-        syncscope_mapping = self.get_syncscope_mapping()
-
-        ordering = None
-        syncscope = None
+        modifier_data: dict[str, Any] = dict()
         for mod in modifiers:
-            if mod in self.legal_ordering_constraints:
-                if ordering is not None:
-                    raise self._parse_error(f"more than one ordering constraint")
-                ordering = mod
-            elif mod.startswith("ss="):
-                if syncscope is not None:
-                    raise self._parse_error(f"more than one syncscope")
-                mod = mod[3:]
-                if mat := syncscope_mapping.get(mod):
-                    syncscope = mat
-                else:
-                    raise self._parse_error(f'unknown syncscope "{mod}"')
-            else:
+            if not self.parse_modifier(modifier_data, mod):
                 raise self._parse_error(f'unknown modifier "{mod}"')
 
-        addr = None
-        if opcode == "fence":
-            if len(args) > 0:
-                raise self._parse_error(f"unexpected arguments for fence")
-        else:
-            if len(args) == 0:
-                raise self._parse_error(f"missing address argument")
-            if len(args) > 1:
-                raise self._parse_error(f"superfluous arguments")
-            addr = args[0]
+        operands = list(args)
 
-        if ordering is None and syncscope is not None:
-            raise self._parse_error(f"non-atomic operation with a syncscope")
-
-        if syncscope is None and ordering is not None:
-            syncscope = "system"  # default syncscope
+        if (
+            modifier_data.get("syncscope") is None
+            and modifier_data.get("ordering") is not None
+        ):
+            modifier_data["syncscope"] = "system"  # default syncscope
 
         alloy_id = self._create_instruction_id(var, opcode)
-        parsed_inst = Instruction(alloy_id, opcode, scope, addr, var, line)
-        if ordering is not None:
-            parsed_inst.additional_data["ordering"] = ordering
-        if syncscope is not None:
-            parsed_inst.additional_data["syncscope"] = syncscope
+        parsed_inst = Instruction(alloy_id, opcode, scope, operands, var)
+        parsed_inst.additional_data.update(modifier_data)
+        self.validate_instruction(parsed_inst)
 
         return parsed_inst
 
@@ -149,85 +198,60 @@ class LLVMIRTest(ModelTest):
 
         return str(b)
 
-    def _encode_program(self, b: AlloyBuilder) -> None:
-        opcode_to_sig = {
-            "load": "SimpleRead",
-            "store": "SimpleWrite",
-            "rmw": "RMW",
-            "fence": "Fence",
-        }
-        po = list()
-        for tid, insts in self.program_order.items():
-            b.add(f"// Events for thread {tid}:")
-            predecessor = None
-            for inst in insts:
-                sig = opcode_to_sig.get(inst.opcode)
-                assert sig is not None, f"unknown opcode {inst.opcode}"
-                b.add(f"one sig {inst.alloy_id} extends {sig} {{}}")
-                if predecessor is not None:
-                    po.append(f"({predecessor.alloy_id} -> {inst.alloy_id})")
-                predecessor = inst
-            b.add()
+    opcode_to_sig = {
+        "load": "SimpleRead",
+        "store": "SimpleWrite",
+        "rmw": "RMW",
+        "fence": "Fence",
+    }
 
-        all_addrs = {
-            e.addr: f"Init_{e.addr}" for e in self.all_insts if e.addr is not None
-        }
+    def _encode_instruction(
+        self,
+        b: AlloyBuilder,
+        inst: Instruction,
+        used_addrs: set[str],
+        used_scope_instances: set[Topology.ScopeInstance],
+        additional_po: list[str],
+    ) -> None:
+        maybe_sig = self.opcode_to_sig.get(inst.opcode)
+        assert maybe_sig is not None, f"unknown opcode {inst.opcode}"
+        sig = maybe_sig
+        b.add(f"one sig {inst.alloy_id} extends {sig} {{}}")
 
-        b.add(f"// Init Writes:")
-        for addr, init_id in all_addrs.items():
-            b.add(f"one sig {init_id} extends Init {{}}")
-        b.add()
+        with b.block(f"fact {inst.alloy_id}_properties"):
+            ordering = inst.additional_data.get("ordering")
+            match ordering:
+                case None:
+                    b.add(f"{inst.alloy_id} not in Atomic")
+                case "unordered":
+                    b.add(f"{inst.alloy_id} in Atomic - Monotonic")
+                case "monotonic":
+                    b.add(f"{inst.alloy_id} in Monotonic - (Acquire + Release)")
+                case "release":
+                    b.add(f"{inst.alloy_id} in Release - (Acquire + SeqCst)")
+                case "acquire":
+                    b.add(f"{inst.alloy_id} in Acquire - (Release + SeqCst)")
+                case "acq_rel":
+                    b.add(f"{inst.alloy_id} in (Acquire & Release) - SeqCst")
+                case "seq_cst":
+                    b.add(f"{inst.alloy_id} in SeqCst")
 
-        with b.block("fact"):
-            b.add(
-                "Event = {}".format(
-                    " + ".join(
-                        list(map(lambda x: x.alloy_id, self.all_insts))
-                        + list(all_addrs.values())
-                    )
+            if ordering is not None:
+                syncscope = inst.additional_data.get("syncscope")
+                assert syncscope is not None
+                syncscope_instance = inst.execscope_instance.get_ancestor_at(syncscope)
+                b.add(
+                    f"{inst.alloy_id}.syncscope_instance = {self._get_scope_instance_sig(syncscope_instance)}"
                 )
-            )
-            b.add()
+                used_scope_instances.add(syncscope_instance)
 
-            b.add(f"// program order:")
-            if len(po) == 0:
-                b.add("no po_imm")
-            else:
-                b.add("po_imm = {}".format(" + ".join(po)))
-            b.add()
+            if inst.addr is not None:
+                init_id = self._get_init_sig(inst.addr)
+                b.add(f"{inst.alloy_id} -> {init_id} in same_location")
+                used_addrs.add(inst.addr)
 
-            b.add(f"// Event properties:")
-            for e in self.all_insts:
-                match e.additional_data.get("ordering"):
-                    case None:
-                        b.add(f"{e.alloy_id} not in Atomic")
-                    case "unordered":
-                        b.add(f"{e.alloy_id} in Atomic")
-                        b.add(f"{e.alloy_id} not in Monotonic")
-                    case "monotonic":
-                        b.add(f"{e.alloy_id} in Monotonic")
-                        b.add(f"{e.alloy_id} not in Acquire + Release")
-                    case "release":
-                        b.add(f"{e.alloy_id} in Release")
-                        b.add(f"{e.alloy_id} not in Acquire")
-                    case "acquire":
-                        b.add(f"{e.alloy_id} in Acquire")
-                        b.add(f"{e.alloy_id} not in Release")
-                    case "acq_rel":
-                        b.add(f"{e.alloy_id} in Acquire & Release")
-                        b.add(f"{e.alloy_id} not in SeqCst")
-                    case "seq_cst":
-                        b.add(f"{e.alloy_id} in SeqCst")
-            b.add()
-
-            b.add(f"// Aliasing addresses:")
-            for e in self.all_insts:
-                if e.addr is not None:
-                    init_id = all_addrs[e.addr]
-                    b.add(f"({init_id} -> {e.alloy_id}) in same_location")
-
-        b.add()
-        self._encode_scope_hierarchy(b)
+    def _get_init_sig(self, addr: str) -> str:
+        return f"_Init_{addr}"
 
     def _get_scope_instance_sig(self, scope_instance: Topology.ScopeInstance) -> str:
         if scope_instance.level == "system":
@@ -235,22 +259,48 @@ class LLVMIRTest(ModelTest):
         id_str = scope_instance.id
         return "_scope_{}_{}".format(scope_instance.level, id_str)
 
-    def _encode_scope_hierarchy(self, b: AlloyBuilder) -> None:
-        scope_encoding = self.scope_encoding
-        b.add("// syncscope constraints:")
-        with b.block("fact"):
-            referenced_scope_instances = set()
-            for e in self.all_insts:
-                syncscope = e.additional_data.get("syncscope")
-                if e.additional_data.get("ordering") is None:
-                    continue
-                assert syncscope is not None
-                syncscope_instance = e.execscope_instance.get_ancestor_at(syncscope)
-                b.add(
-                    f"{e.alloy_id}.syncscope_instance = {self._get_scope_instance_sig(syncscope_instance)}"
+    def _encode_program(self, b: AlloyBuilder) -> None:
+        po = list()
+        all_addrs: set[str] = set()
+        used_scope_instances: set[Topology.ScopeInstance] = set()
+        for tid, insts in self.program_order.items():
+            b.add(f"// Events for thread {tid}:")
+            predecessor = None
+            for inst in insts:
+                additional_po: list[str] = []
+                self._encode_instruction(
+                    b,
+                    inst,
+                    used_addrs=all_addrs,
+                    used_scope_instances=used_scope_instances,
+                    additional_po=additional_po,
                 )
-                referenced_scope_instances.add(syncscope_instance)
+                if predecessor is not None:
+                    po.append(f"({predecessor.alloy_id} -> {inst.alloy_id})")
+                po.extend(additional_po)
+                predecessor = inst
+                b.add()
 
+        b.add(f"// Init Writes:")
+        for addr in all_addrs:
+            init_id = self._get_init_sig(addr)
+            b.add(f"one sig {init_id} extends Init {{}}")
+        b.add()
+
+        with b.block("fact"):
+            b.add(f"// program order:")
+            if len(po) == 0:
+                b.add("no po_imm")
+            else:
+                b.add("po_imm = {}".format(" + ".join(po)))
+        b.add()
+
+        self._encode_scope_hierarchy(b, used_scope_instances)
+
+    def _encode_scope_hierarchy(
+        self, b: AlloyBuilder, used_scope_instances: set[Topology.ScopeInstance]
+    ) -> None:
+        scope_encoding = self.scope_encoding
         representative_scope_instance = {
             self.topology.root_scope_instance: self.topology.root_scope_instance
         }
@@ -270,7 +320,7 @@ class LLVMIRTest(ModelTest):
                 skip_scope_instance = (
                     scope_encoding == ScopeEncoding.OPTIMIZED
                     and len(scope_instance.children) <= 1
-                    and scope_instance not in referenced_scope_instances
+                    and scope_instance not in used_scope_instances
                 )
                 assert scope_instance.parent is not None
                 represented_parent = representative_scope_instance[

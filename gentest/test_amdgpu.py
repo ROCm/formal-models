@@ -397,14 +397,16 @@ def test_ir_parse_syncscope():
     """
     instance = parseInput(amdgpu.AMDGPULLVMIRTest, test_input)
 
+    insts = instance.program_order["0"]
+
     def instruction_matches(idx, opc, expected_scope):
-        instr = instance.all_insts[idx]
+        instr = insts[idx]
         return (
             instr.opcode == opc
             and instr.additional_data.get("syncscope") == expected_scope
         )
 
-    assert len(instance.all_insts) == 12
+    assert len(insts) == 12
     assert instruction_matches(0, "store", "system")
     assert instruction_matches(1, "store", "system")
     assert instruction_matches(2, "store", "agent")

@@ -323,9 +323,8 @@ class Instruction:
         alloy_id: str,
         opcode: str,
         execscope_instance: Topology.ScopeInstance,
-        addr: Optional[str],
+        operands: List[str],
         var: Optional[str],
-        src_line: str,
     ) -> None:
         self.alloy_id: str = alloy_id
         """Identifier used to represent the instruction in the Alloy formulas."""
@@ -333,14 +332,19 @@ class Instruction:
         """Opcode of the instruction, for improved printing."""
         self.execscope_instance: Topology.ScopeInstance = execscope_instance
         """ScopeInstance in which the instruction is executed."""
-        self.addr: Optional[str] = addr
-        """Address operand of the instruction, if applicable."""
+        self.operands: List[str] = operands
+        """List of operands to the operation. Can be empty."""
         self.var: Optional[str] = var
         """Identifier declared in the input to refer to this instruction in predicates."""
-        self.src: str = src_line
-        """Input line defining this instruction, for printing."""
-        self.additional_data: dict[str, str] = dict()
+        self.additional_data: dict[str, Any] = dict()
         """Additional, model-specific data for this instruction."""
+
+    @property
+    def addr(self):
+        """Address operand of the instruction, if applicable."""
+        if len(self.operands) > 0:
+            return self.operands[0]
+        return None
 
 
 class ModelTest(ABC):
@@ -414,7 +418,6 @@ class ModelTest(ABC):
         self.substitutions: dict[str, str] = dict()
         self.program_order: dict[str, list[Instruction]] = defaultdict(list)
         """Mapping from bottom-level scope instance ID to the list of Instructions that is executed there."""
-        self.all_insts: list[Instruction] = list()
 
         self.topology = Topology(self.get_scope_hierarchy())
         self.scope_levels = set(self.get_scope_hierarchy())
@@ -454,6 +457,11 @@ class ModelTest(ABC):
         )
         for key, value in substitutions_sorted:
             res = res.replace("$" + key, value)
+
+        if "$" in res:
+            raise SemanticError(
+                f"unresolved variable in Alloy predicate: {alloy_pred}\n  after substitution: {res}"
+            )
         return res
 
     name_regex = re.compile(r"^\$([A-Za-z][A-Za-z0-9_]*):")
@@ -514,7 +522,6 @@ class ModelTest(ABC):
         """
         # Register the instruction in the program order.
         self.program_order[inst.execscope_instance.id].append(inst)
-        self.all_insts.append(inst)
 
         # Register the identifier for substitutions in check predicates.
         if inst.var is not None:
