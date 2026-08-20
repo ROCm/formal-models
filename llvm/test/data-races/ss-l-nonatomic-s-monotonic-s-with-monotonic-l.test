@@ -1,0 +1,27 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $S1: store p
+  $R: store.release f
+  $S2: store.monotonic p
+
+#thread 1
+  $A: load.acquire f
+  $L: load.monotonic p
+
+#push llvm_memory_model
+
+#push $R -> $A not in rf
+
+// This is a data race, $S1 races with $L.
+#check sat
+#assert $L in DataRaceRead
+
+#pop
+#push $R -> $A in rf
+
+// This is not a data race: $L and $S2 are monotonic, and $S1 happens-before both of them.
+#check sat
+#assert no DataRaceRead
+
+#pop
