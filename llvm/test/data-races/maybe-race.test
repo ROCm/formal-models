@@ -3,10 +3,10 @@
 #thread 0
   $A: store p1
   fence.release
-  $X: store.unordered p2
+  $X: store.monotonic p2
 
 #thread 1
-  $Y: load.unordered p2
+  $Y: load.monotonic p2
   fence.acquire
   $B: load p1
 

@@ -1,6 +1,6 @@
 // RUN: %alstest -t %t %s
 
-module memory_consistency/llvm/test/undef_reads/sanity
+module memory_consistency/llvm/test/data_races/general_properties
 open memory_consistency/llvm/all_predicates
 
 

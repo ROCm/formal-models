@@ -1,0 +1,20 @@
+// RUN: %gentest -t %t llvm-amdgpu %s
+
+#agent 0
+#workgroup 0
+#thread 0
+  $S1: store.monotonic.ss=agent p
+  $R: store.release f
+  $S2: store.monotonic.ss=agent p
+
+#workgroup 1
+#thread 1
+  $A: load.acquire f
+  $L: load.monotonic.ss=workgroup p
+
+#push amdgpu_memory_model
+
+// This is a data race, $S2 races with $L (they don't have inclusive scope). It
+// doesn't matter if $R and $A synchronize.
+#check sat
+#assert $L in DataRaceRead

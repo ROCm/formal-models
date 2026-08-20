@@ -50,6 +50,8 @@ run check_all_seqcst_rf_does_not_skip_seqcst_writes {
 
   Event = SeqCst
 
+  all_scopes_compatible
+
   not (all r: Read | all w: Write |
     (w -> r) in rf implies ((w -> r) in seqcst_order and no w2: Write | (w -> w2) + (w2 -> r) in same_location & seqcst_order))
 
