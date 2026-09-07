@@ -1,0 +1,17 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $L: load.unordered p0
+  $F0: fence.acquire
+  $F1: fence.release
+  $S: store.unordered p0
+
+#thread 1
+  $M: rmw.monotonic p0
+
+#push llvm_memory_model
+
+// rf-chains for synchronization can't start or end with unordered atomics, so
+// the fence does nothing.
+#check sat ($S -> $M) + ($M -> $L) in rf
+
