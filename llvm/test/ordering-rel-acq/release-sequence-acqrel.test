@@ -4,16 +4,16 @@
 // sequence of RMWs.
 
 #thread 0
-  $A: store.unordered p1
+  $A: store p1
   $X: store.release p2
 
 #thread 1
   $RW1: rmw.acq_rel p2
-  $B1: load.unordered p1
+  $B1: load p1
 
 #thread 2
   $Y: load.acquire p2
-  $B: load.unordered p1
+  $B: load p1
 
 #push llvm_memory_model
 
