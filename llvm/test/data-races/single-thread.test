@@ -17,5 +17,5 @@
 #check sat
 
 // You need more than one thread for a data race.
-#check unsat some DataRaceRead
+#assert no DataRaceRead
 
