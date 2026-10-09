@@ -127,25 +127,27 @@ pred llvm_monotonic_impl[hb: Event -> Event] {
   acyclic[mo, Monotonic]
   (Write & Monotonic) <: ((same_location - iden) & compatible_scope) :> (Write & Monotonic) in mo + ~mo
 
-  // Modification orders are compatible with happens-before.
+  // LangRef: "write-write coherence: If the write W1 happens before the write
+  // W2, then W1 is earlier than W2 in the address's modification order."
   no mo & ~hb
 
-  // A monotonic read R doesn't read from a monotonic write W2 if W2 is
-  // modification-ordered after a monotonic write W1 that happens-after R.
-  // This enforces C++'s read-write coherence rule:
-  //   https://eel.is/c++draft/basic.exec#intro.races-13
+  // TODO The following rules don't play well enough with syncscopes yet.
+
+  // LangRef: "read-write coherence: If the read R happens before the write W,
+  // then R must not read from W or writes that are later than W in the
+  // address's modification order."
+  // Corresponding C++ rule: https://eel.is/c++draft/basic.exec#intro.races-13
   no hb.mo.rf & (iden :> (Read & Monotonic))
 
-  // A monotonic read R doesn't read from a monotonic write W1 if there is
-  // another monotonic write W2 that is modification-ordered after W1 and
-  // happens-before R.
-  // This enforces C++'s write-read coherence rule:
-  //   https://eel.is/c++draft/basic.exec#intro.races-14
+  // LangRef: "write-read coherence: If the write W happens before the read R,
+  // then R must not read from writes that are earlier than W in the address's
+  // modification order."
+  // Corresponding C++ rule: https://eel.is/c++draft/basic.exec#intro.races-14
   no ~rf.mo.hb & (iden :> (Read & Monotonic))
 
-  // "If one atomic read happens before another atomic read of the same address
-  // and both are at least monotonic, the later read must not see an earlier
-  // value in the address's modification order."
+  // LangRef: "read-read coherence: If the read R1 happens before the read R2
+  // and if R1 reads from the write W, then R2 must not read from writes that
+  // are earlier than W in the address's modification order."
   all disj e1, e2 : Read & Monotonic |
     (e1 -> e2) in (hb & same_location & compatible_scope) => (
       some (e1 + e2) & DataRaceRead or // If one of them is part of a data race, there is no constraint.
