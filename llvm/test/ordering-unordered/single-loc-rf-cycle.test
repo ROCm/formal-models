@@ -1,0 +1,13 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $L: load.unordered p
+  $S: store.unordered p
+
+#thread 1
+  $M: rmw.monotonic p
+
+#push llvm_memory_model
+
+#check sat ($S -> $M) + ($M -> $L) in rf
+
