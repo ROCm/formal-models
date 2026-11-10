@@ -6,23 +6,23 @@
 // of the RMWs.
 
 #thread 0
-  $A: store.unordered p1
+  $A: store p1
   $X: store.release p2
 
 #thread 1
   $RW1: rmw.monotonic p2
-  $L1: load.unordered p1
+  $L1: load p1
 
 #thread 2
   $RW2: rmw.monotonic p2
 
 #thread 3
   $Y: load.acquire p2
-  $B: load.unordered p1
+  $B: load p1
 
 #push llvm_memory_model
 
 #push ($X -> $RW1) + ($RW1 -> $RW2) + ($RW2 -> $Y) in rf
 #check sat
 #check unsat ($X -> $Y) not in llvm_sw
-#check sat $L1 in InitRead
+#check sat $L1 in DataRaceRead

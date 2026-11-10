@@ -77,11 +77,6 @@ fun llvm_racing_accesses[hb: Event -> Event] : Access -> Access {
 // according to the provided happens-before relation, unless they are part of a
 // data race (in which case they read undef).
 pred llvm_coherent_reads_from[hb: Event -> Event] {
-  // This constraint is load-bearing: sw edges must follow rf edges, and hb is
-  // what makes rf obey causality, so we need this additional fact to ensure hb
-  // is a partial order.
-  acyclic[hb, Event]
-
   rf in llvm_may_see[hb]
 
   // A read returns undef unless every pair of accesses from the set consisting
@@ -115,12 +110,12 @@ fun llvm_sw : Release -> Acquire {
 
 // Connects release Fences with the Writes that they pair with.
 fun llvm_fence_release_pairs : Fence -> Write {
-  (Fence & Release) <: po :> (Write & Atomic)
+  (Fence & Release) <: po :> (Write & Monotonic)
 }
 
 // Connects acquire Fences with the Reads that they pair with.
 fun llvm_fence_acquire_pairs : Read -> Fence {
-  (Read & Atomic) <: po :> (Fence & Acquire)
+  (Read & Monotonic) <: po :> (Fence & Acquire)
 }
 
 // =============================================================================
