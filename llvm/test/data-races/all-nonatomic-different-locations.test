@@ -11,5 +11,5 @@
 #check sat
 
 // The accesses go to different memory locations: no race.
-#check unsat some DataRaceRead
+#assert no DataRaceRead
 

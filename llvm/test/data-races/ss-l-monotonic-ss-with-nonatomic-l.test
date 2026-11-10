@@ -1,0 +1,17 @@
+// RUN: %gentest -t %t llvm %s
+
+#thread 0
+  $S1: store.monotonic p
+  $R: store.release f
+  $S2: store.monotonic p
+
+#thread 1
+  $A: load.acquire f
+  $L: load p
+
+#push llvm_memory_model
+
+// This is a data race, $S2 is always racing with at least $L. It doesn't
+// matter if $R and $A synchronize.
+#check sat
+#assert $L in DataRaceRead

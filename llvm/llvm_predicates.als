@@ -57,6 +57,22 @@ fun llvm_may_see[hb: Event -> Event] : Write -> Read {
   (Write <: same_location :> Read) - (write_between[hb] + ~hb + iden)
 }
 
+// Relates accesses that are not protected from racing.
+fun llvm_racing_accesses[hb: Event -> Event] : Access -> Access {
+  // Only accesses to the same location can race.
+  same_location - (
+    // Accesses don't race with themselves.
+    iden +
+
+    // Accesses don't race if either happens-before the other.
+    hb + ~hb +
+
+    // Accesses don't race if they are both atomic and have compatible scopes
+    // (and, not represented, they don't overlap partially).
+    ((Atomic -> Atomic) & compatible_scope)
+  )
+}
+
 // This predicate entails that Reads read from a Write that they can read from
 // according to the provided happens-before relation, unless they are part of a
 // data race (in which case they read undef).
@@ -68,15 +84,11 @@ pred llvm_coherent_reads_from[hb: Event -> Event] {
 
   rf in llvm_may_see[hb]
 
-  // If a Read may read from more than one candidate (including the initial
-  // value) and at least one of the involved accesses is not Atomic, we have a
-  // data race and the Read reads undef.
-  // If any pair of involved accesses has incompatible scopes, we also have a
-  // data race.
+  // A read returns undef unless every pair of accesses from the set consisting
+  // of R and the writes R may see is protected from racing.
   all R : Read | R in DataRaceRead iff (
-      let involved_accs = R + (llvm_may_see[hb]).R |
-        (involved_accs not in Atomic or (involved_accs -> involved_accs) not in compatible_scope) and
-          (#(llvm_may_see[hb]).R >= 2)
+      let involved_accesses = R + (llvm_may_see[hb]).R |
+        some (involved_accesses -> involved_accesses) & llvm_racing_accesses[hb]
     )
 }
 
